@@ -1,0 +1,46 @@
+A3 timing summary
+=================
+
+Timing host: separate x86-64 machine
+Workload: 100 compression/decompression iterations per measurement
+Repetitions: 5 per variant
+Statistic: arithmetic mean of the 5 measurements
+
+Mean wall-clock times
+---------------------
+native x86-64:                                      0.014996 s
+stock qemu-riscv64, unoptimised RISC-V guest:       0.170234 s
+CapsLock QEMU, capability operations stubbed/no-op: 1.456172 s
+full CapsLock QEMU:                                32.230098 s
+
+Calculated ratios
+-----------------
+stock / native:  11.351961x
+stub / native:   97.104028x
+full / native: 2149.246332x
+stub / stock:     8.553943x
+full / stub:     22.133442x
+
+Absolute-slowdown decomposition
+-------------------------------
+full - native: 32.215102 s
+full - stub:   30.773926 s
+
+(full - stub) / (full - native): 95.526396%
+(stub - native) / (full - native): 4.473604%
+
+Interpretation
+--------------
+The first percentage is the portion of full-over-native elapsed-time
+increase added when full checking is enabled over the no-op CapsLock
+configuration. The complement includes CapsLock QEMU and instrumented-guest
+overhead as well as emulation, so it is not a pure cross-ISA emulation figure.
+
+Reproducibility metadata still to copy from the x86-64 host
+-----------------------------------------------------------
+- CPU model and OS/WSL version
+- workload/crate revision and input SHA-256
+- warm-up policy and timing command
+- exact build flags and commands for all four variants
+- stock and CapsLock QEMU revisions
+- the five raw observations for every variant

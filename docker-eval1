@@ -1,0 +1,4 @@
+#!/bin/sh
+
+docker run -it --rm -v $(realpath "./evaluations"):/workdir -w /workdir/1-compat-perf capslock-artefacts \
+    /bin/sh just-run.sh $@

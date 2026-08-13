@@ -1,0 +1,94 @@
+Building for AddressSanitizer...
+Running AddressSanitizer...
+#### Running RUSTSEC-2019-0009
+SUMMARY: AddressSanitizer: double-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2019-0009/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xc7c26) (BuildId: 3ec0abc7fea0b139) 
+#### Running RUSTSEC-2019-0023
+SUMMARY: AddressSanitizer: heap-use-after-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2019-0023/poc/target/x86_64-unknown-linux-gnu/debug/poc+0x60db5) (BuildId: c48a3641bc98796e) 
+#### Running RUSTSEC-2020-0023
+#### Running RUSTSEC-2020-0091
+SUMMARY: AddressSanitizer: stack-use-after-return (/workdir/2-existing-bugs/PoCs/RUSTSEC-2020-0091/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xef5c0) (BuildId: 9c6c073e105a8f7d) 
+#### Running RUSTSEC-2021-0031
+#### Running RUSTSEC-2021-0039
+SUMMARY: AddressSanitizer: double-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2021-0039/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xc5d76) (BuildId: efc83b62dc55097b) 
+#### Running RUSTSEC-2021-0049
+SUMMARY: AddressSanitizer: double-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2021-0049/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xc6f46) (BuildId: b6bca7c290cbefc5) 
+#### Running RUSTSEC-2021-0053
+SUMMARY: AddressSanitizer: double-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2021-0053/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xc9c16) (BuildId: df71f6f88f47c0fe) 
+#### Running RUSTSEC-2021-0114
+#### Running RUSTSEC-2021-0130
+SUMMARY: AddressSanitizer: heap-use-after-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2021-0130/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xff454) (BuildId: 422f51124e7d6da3) 
+#### Running RUSTSEC-2022-0002
+#### Running RUSTSEC-2022-0007
+SUMMARY: AddressSanitizer: heap-use-after-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2022-0007/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xd1fea) (BuildId: 3b8286672879036b) 
+#### Running RUSTSEC-2022-0040
+#### Running RUSTSEC-2022-0070
+#### Running RUSTSEC-2023-0070
+SUMMARY: AddressSanitizer: heap-use-after-free (/workdir/2-existing-bugs/PoCs/RUSTSEC-2023-0070/poc/target/x86_64-unknown-linux-gnu/debug/poc+0xc615a) (BuildId: 58642dc4200e2d6c) 
+Building for ThreadSanitizer...
+Running ThreadSanitizer...
+#### Running RUSTSEC-2019-0009
+#### Running RUSTSEC-2019-0023
+#### Running RUSTSEC-2020-0023
+#### Running RUSTSEC-2020-0091
+#### Running RUSTSEC-2021-0031
+#### Running RUSTSEC-2021-0039
+#### Running RUSTSEC-2021-0049
+#### Running RUSTSEC-2021-0053
+#### Running RUSTSEC-2021-0114
+#### Running RUSTSEC-2021-0130
+#### Running RUSTSEC-2022-0002
+#### Running RUSTSEC-2022-0007
+#### Running RUSTSEC-2022-0040
+#### Running RUSTSEC-2022-0070
+#### Running RUSTSEC-2023-0070
+Running Miri...
+#### Running RUSTSEC-2019-0009
+error: Undefined Behavior: constructing invalid value at .value[0]: encountered uninitialized memory, but expected an integer
+#### Running RUSTSEC-2019-0023
+error: Undefined Behavior: trying to retag from <3683> for SharedReadOnly permission at alloc1533[0x0], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2020-0023
+error: Undefined Behavior: trying to retag from <3439> for SharedReadOnly permission at alloc1421[0x0], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2020-0091
+error: Undefined Behavior: out-of-bounds pointer use: alloc6072 has been freed, so this pointer is dangling
+#### Running RUSTSEC-2021-0031
+error: Undefined Behavior: attempting a write access using <4112> at alloc1431[0x8], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2021-0039
+error: Undefined Behavior: memory access failed: alloc1190 has been freed, so this pointer is dangling
+#### Running RUSTSEC-2021-0049
+error: Undefined Behavior: out-of-bounds pointer use: alloc1220 has been freed, so this pointer is dangling
+#### Running RUSTSEC-2021-0053
+error: Undefined Behavior: out-of-bounds pointer use: alloc1380 has been freed, so this pointer is dangling
+#### Running RUSTSEC-2021-0114
+error: Undefined Behavior: trying to retag from <3386> for SharedReadWrite permission at alloc1271[0x10], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2021-0130
+error: Undefined Behavior: trying to retag from <5114> for SharedReadOnly permission at alloc2285[0x28], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2022-0002
+error: Undefined Behavior: constructing invalid value: encountered a dangling reference (use-after-free)
+#### Running RUSTSEC-2022-0007
+error: Undefined Behavior: trying to retag from <6400> for SharedReadOnly permission at alloc2640[0x0], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2022-0040
+error: Undefined Behavior: trying to retag from <2568> for SharedReadWrite permission at alloc1181[0x0], but that tag does not exist in the borrow stack for this location
+#### Running RUSTSEC-2022-0070
+#### Running RUSTSEC-2023-0070
+error: Undefined Behavior: constructing invalid value: encountered a dangling reference (use-after-free)
+Building for CapsLock...
+Running CapsLock...
+run-logs/RUSTSEC-2020-0023.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = f74e0, size = 4, node = 0x5555560dfa90) @ pc = 172c6!
+run-logs/RUSTSEC-2020-0091.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560d6be8, 883) addr = 2aaaab2ab790, size = 16 @ pc = 13930
+run-logs/RUSTSEC-2021-0039.txt:[CAPSLOCK] Attempting to drop an invalid capability! f44e0 0x5555560cb7c8 in 8757 @ 135e0, previously invalidated at 136cc
+run-logs/RUSTSEC-2021-0053.txt:[CAPSLOCK] Attempting to drop an invalid capability! f9550 0x5555560d5bc0 in 8744 @ 19160, previously invalidated at 192f8
+run-logs/RUSTSEC-2021-0114.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = f8500, size = 8, node = 0x5555560e3190) @ pc = 131d8!
+run-logs/RUSTSEC-2022-0002.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = 14370c, size = 4, node = 0x55555682c540) @ pc = eca66!
+run-logs/RUSTSEC-2022-0040.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560cc8f8, 409) addr = f14e0, size = 1 @ pc = 12e52
+
+
+The stock docker-eval2 script hard-coded -j16, so eight QEMU
+processes were killed under linux/amd64 emulation on the Apple M5.
+After rerunning those eight PoCs sequentially with the same image
+and binaries, CapsLock detected all 15/15 RustSec PoCs.
+
+ThreadSanitizer could not be evaluated under the linux/amd64 Docker 
+environment emulated on Apple Silicon. Its runtime terminated before 
+executing the PoC because the virtual memory layout was incompatible, 
+even after ASLR was disabled. Therefore, the absence of TSan summaries 
+is an environment limitation rather than a negative detection result.

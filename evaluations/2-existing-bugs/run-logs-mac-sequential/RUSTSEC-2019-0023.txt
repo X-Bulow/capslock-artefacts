@@ -1,0 +1,9 @@
+[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560df358, 1277) addr = 10a500, size = 3 @ pc = 27192
+!Previously invalidated at 27776
+PC: 2751a
+PC: 15
+> 0x5555560df358: 0 1 10a500 10a503
+> 0x5555560de540: 0 0 10a500 10a503
+> 0x5555560dcb78: 0 1 10a500 10a503
+> 0x5555560dc338: 0 0 10a500 10a503
+> 0x5555560d7cc0: 0 0 10a500 10a508

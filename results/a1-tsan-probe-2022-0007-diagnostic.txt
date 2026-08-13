@@ -1,0 +1,7 @@
+==8==WARNING: ThreadSanitizer: memory layout is incompatible, possibly due to high-entropy ASLR.
+Re-execing with fixed virtual address space.
+N.B. reducing ASLR entropy is preferable.
+==8==FATAL: ThreadSanitizer: memory layout is incompatible, even though ASLR is disabled.
+Please file a bug.
+
+[probe exit code] 66

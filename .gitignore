@@ -1,0 +1,21 @@
+rustc-ice*.txt
+runtime/test_runtime
+runtime/oracle_programs
+tmp/
+
+# macOS
+.DS_Store
+
+# LaTeX generated files
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+/workbook/CapsLock_M-A_Runtime.pdf
+/workbook/CapsLock.pdf
+
+# Rust build outputs
+target/

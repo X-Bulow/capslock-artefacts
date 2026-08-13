@@ -1,0 +1,13 @@
+cc -std=c11 -O0 -g -Wall -Wextra -Werror -pedantic libcapslock.c test_runtime.c -o test_runtime
+[PASS] create and shadow map
+[PASS] borrow permissions and bounds
+nested borrow chain: accepted
+use-after-revoke: rejected (attempting to use an invalid capability)
+[PASS] nested borrow and revoke
+[PASS] store invalidation
+[PASS] load invalidation
+[PASS] disjoint partial borrows
+[PASS] RAW versus REF
+[PASS] UnsafeCell relaxation
+[PASS] access checks
+9/9 runtime tests passed

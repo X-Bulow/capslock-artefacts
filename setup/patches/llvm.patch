@@ -1,0 +1,210 @@
+diff --git a/.gitignore b/.gitignore
+index 20c4f52cd378..01498b7b55a0 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -70,3 +70,9 @@ pythonenv*
+ /clang/utils/analyzer/projects/*/RefScanBuildResults
+ # automodapi puts generated documentation files here.
+ /lldb/docs/python_api/
++
++/installation
++/playground
++/container
++/packages
++/build
+diff --git a/llvm/include/llvm/CodeGen/TargetRegisterInfo.h b/llvm/include/llvm/CodeGen/TargetRegisterInfo.h
+index 5a6da209e8da..b08ddb84017b 100644
+--- a/llvm/include/llvm/CodeGen/TargetRegisterInfo.h
++++ b/llvm/include/llvm/CodeGen/TargetRegisterInfo.h
+@@ -492,6 +492,10 @@ public:
+     return nullptr;
+   }
+ 
++  virtual bool requireFrameReference() const {
++    return true;
++  }
++
+   /// Return a register mask for the registers preserved by the unwinder,
+   /// or nullptr if no custom mask is needed.
+   virtual const uint32_t *
+diff --git a/llvm/lib/CodeGen/LocalStackSlotAllocation.cpp b/llvm/lib/CodeGen/LocalStackSlotAllocation.cpp
+index e491ed12034d..ae514a494893 100644
+--- a/llvm/lib/CodeGen/LocalStackSlotAllocation.cpp
++++ b/llvm/lib/CodeGen/LocalStackSlotAllocation.cpp
+@@ -126,7 +126,11 @@ bool LocalStackSlotPass::runOnMachineFunction(MachineFunction &MF) {
+   calculateFrameObjectOffsets(MF);
+ 
+   // Insert virtual base registers to resolve frame index references.
+-  bool UsedBaseRegs = insertFrameReferenceRegisters(MF);
++  bool UsedBaseRegs;
++  if (TRI->requireFrameReference())
++    UsedBaseRegs = insertFrameReferenceRegisters(MF);
++  else
++    UsedBaseRegs = false;
+ 
+   // Tell MFI whether any base registers were allocated. PEI will only
+   // want to use the local block allocations from this pass if there were any.
+diff --git a/llvm/lib/Target/RISCV/RISCVFrameLowering.cpp b/llvm/lib/Target/RISCV/RISCVFrameLowering.cpp
+index d793c0b7377b..ad476313fdc2 100644
+--- a/llvm/lib/Target/RISCV/RISCVFrameLowering.cpp
++++ b/llvm/lib/Target/RISCV/RISCVFrameLowering.cpp
+@@ -22,8 +22,10 @@
+ #include "llvm/IR/DiagnosticInfo.h"
+ #include "llvm/MC/MCDwarf.h"
+ #include "llvm/Support/LEB128.h"
++#include <cstdio>
+ 
+ #include <algorithm>
++#include <vector>
+ 
+ using namespace llvm;
+ 
+@@ -553,12 +555,15 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
+   }
+ 
+   if (StackSize != 0) {
++    // For CapsLock
+     // Allocate space on the stack if necessary.
+     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
+                   StackOffset::getFixed(-StackSize), MachineInstr::FrameSetup,
+                   getStackAlign());
+   }
+ 
++
++
+   // Emit ".cfi_def_cfa_offset RealStackSize"
+   unsigned CFIIndex = MF.addFrameInst(
+       MCCFIInstruction::cfiDefCfaOffset(nullptr, RealStackSize));
+@@ -694,6 +699,34 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
+       }
+     }
+   }
++
++  // CapsLock: generate capabilities for frame objects
++  int start_idx = MFI.getObjectIndexBegin();
++  int end_idx = MFI.getObjectIndexEnd();
++  MachineRegisterInfo &MRI = MF.getRegInfo();
++  std::vector< std::pair<int64_t, uint32_t> > stack_objects;
++  for (int idx = end_idx - 1; idx >= start_idx; idx --) {
++    Register FrameReg;
++    StackOffset Offset = getFrameIndexReference(MF, idx, FrameReg);
++    stack_objects.push_back(std::make_pair(Offset.getFixed(), MFI.getObjectSize(idx)));
++  }
++  std::sort(stack_objects.begin(), stack_objects.end());
++  for (auto i = stack_objects.rbegin(); i != stack_objects.rend(); i ++) {
++    Register FrameReg;
++    getFrameIndexReference(MF, 0, FrameReg);
++    Register ScratchReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
++    Register ScratchRegEnd = MRI.createVirtualRegister(&RISCV::GPRRegClass);
++    StackOffset Offset = StackOffset::getFixed(i->first);
++    RI->adjustReg(MBB, MBBI, DL, FrameReg, FrameReg,
++      Offset, MachineInstr::FrameSetup, std::nullopt);
++    BuildMI(MBB, MBBI, DL, TII->get(RISCV::GENCAPSTACK), RISCV::X0)
++      .addReg(FrameReg)
++      .addImm(i->second)
++      .setMIFlag(MachineInstr::FrameSetup);
++    RI->adjustReg(MBB, MBBI, DL, FrameReg, FrameReg,
++      -Offset, MachineInstr::FrameSetup, std::nullopt);
++  }
++
+ }
+ 
+ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
+diff --git a/llvm/lib/Target/RISCV/RISCVInstrInfo.cpp b/llvm/lib/Target/RISCV/RISCVInstrInfo.cpp
+index d5b1ddfbeb3d..1cbae64f9943 100644
+--- a/llvm/lib/Target/RISCV/RISCVInstrInfo.cpp
++++ b/llvm/lib/Target/RISCV/RISCVInstrInfo.cpp
+@@ -761,6 +761,9 @@ MachineInstr *RISCVInstrInfo::foldMemoryOperandImpl(
+     MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
+     MachineBasicBlock::iterator InsertPt, int FrameIndex, LiveIntervals *LIS,
+     VirtRegMap *VRM) const {
++
++  return nullptr; // never fold as this does not work for CapsLock
++
+   const MachineFrameInfo &MFI = MF.getFrameInfo();
+ 
+   // The below optimizations narrow the load so they are only valid for little
+diff --git a/llvm/lib/Target/RISCV/RISCVInstrInfo.td b/llvm/lib/Target/RISCV/RISCVInstrInfo.td
+index 114329c2c7c5..9242eb6eed3f 100644
+--- a/llvm/lib/Target/RISCV/RISCVInstrInfo.td
++++ b/llvm/lib/Target/RISCV/RISCVInstrInfo.td
+@@ -682,6 +682,33 @@ def OR   : ALU_rr<0b0000000, 0b110, "or", Commutable=1>,
+ def AND  : ALU_rr<0b0000000, 0b111, "and", Commutable=1>,
+            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+ 
++
++// CapsLock instructions
++let hasSideEffects = 1, mayLoad = 0, mayStore = 1 in {
++def GENCAP  : RVInstR<0b1000000, 0b001, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
++              "gencap", "$rd, $rs1, $rs2">;
++def DROP    : RVInstR<0b0001011, 0b001, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
++              "drop", "$rd, $rs1, $rs2">; // rd and rs2 are unused
++}
++
++let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
++def LOADSP  : RVInstR<0b0001001, 0b001, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
++              "loadsp", "$rd, $rs1, $rs2">; // rs2 is unused
++}
++
++let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
++def GENCAPSTACK  : RVInstI<0b101, OPC_CUSTOM_2, (outs  GPR:$rd),
++              (ins GPR:$rs1, simm12:$imm12), "gencapstack", "%rd, $rs1, $imm12">;
++              // rd is not used
++}
++
++let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
++def SHRINK  : RVInstR<0b0000001, 0b001, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
++              "shrink", "$rd, $rs1, $rs2">;
++def SHRINKTO : RVInstI<0b000, OPC_CUSTOM_2, (outs GPR:$rd),
++              (ins GPR:$rs1, simm12:$imm12), "shrinkto", "$rd, $rs1, $imm12">;
++}
++
+ let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
+ def FENCE : RVInstI<0b000, OPC_MISC_MEM, (outs),
+                     (ins fencearg:$pred, fencearg:$succ),
+diff --git a/llvm/lib/Target/RISCV/RISCVRegisterInfo.cpp b/llvm/lib/Target/RISCV/RISCVRegisterInfo.cpp
+index d7bb46a221dd..9baa9be50a80 100644
+--- a/llvm/lib/Target/RISCV/RISCVRegisterInfo.cpp
++++ b/llvm/lib/Target/RISCV/RISCVRegisterInfo.cpp
+@@ -422,6 +422,10 @@ void RISCVRegisterInfo::lowerVRELOAD(MachineBasicBlock::iterator II) const {
+   II->eraseFromParent();
+ }
+ 
++bool RISCVRegisterInfo::requireFrameReference() const {
++  return false;
++}
++
+ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+                                             int SPAdj, unsigned FIOperandNum,
+                                             RegScavenger *RS) const {
+@@ -503,6 +507,17 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+                                                  /*IsKill*/false);
+   }
+ 
++  if (MI.getOpcode() == RISCV::ADDI) {
++    const RISCVSubtarget &STI = MF.getSubtarget<RISCVSubtarget>();
++    const auto TII = STI.getInstrInfo();
++    // try converting this into a capability for stack object
++    Register Reg = MI.getOperand(0).getReg();
++    MachineInstrBuilder MIB =
++        BuildMI(*II->getParent()->getParent(), DL, TII->get(RISCV::LOADSP), Reg)
++          .addReg(Reg);
++    II->getParent()->insertAfter(MI, MIB);
++  }
++
+   // If after materializing the adjustment, we have a pointless ADDI, remove it
+   if (MI.getOpcode() == RISCV::ADDI &&
+       MI.getOperand(0).getReg() == MI.getOperand(1).getReg() &&
+diff --git a/llvm/lib/Target/RISCV/RISCVRegisterInfo.h b/llvm/lib/Target/RISCV/RISCVRegisterInfo.h
+index 8b729caa5f71..3253a39ccae5 100644
+--- a/llvm/lib/Target/RISCV/RISCVRegisterInfo.h
++++ b/llvm/lib/Target/RISCV/RISCVRegisterInfo.h
+@@ -47,6 +47,8 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
+                  StackOffset Offset, MachineInstr::MIFlag Flag,
+                  MaybeAlign RequiredAlign) const;
+ 
++  bool requireFrameReference() const override;
++
+   bool eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
+                            unsigned FIOperandNum,
+                            RegScavenger *RS = nullptr) const override;

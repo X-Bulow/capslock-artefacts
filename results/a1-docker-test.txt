@@ -1,0 +1,52 @@
+Building helloworld...
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+   Compiling helloworld v0.1.0 (/workdir)
+
+Compiling using CapsLock custom compiler
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.05s
+Running helloworld...
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+Hello, world!
+Building violation...
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+   Compiling violation v0.1.0 (/workdir)
+
+Compiling using CapsLock custom compiler
+
+Insert borrow (UnsafeCell = false, Foreign = false): *mut i32
+Insert borrow (UnsafeCell = false, Foreign = false): &ReErased mut i32
+Insert borrow (UnsafeCell = false, Foreign = false): *mut i32
+Insert borrow (UnsafeCell = false, Foreign = false): &ReErased mut i32
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.82s
+Running violation...
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[CAPSLOCK] Attempting to use an invalid capability for load (address = f2490, size = 4, node = 0x5555560cc798) @ pc = 141e2!
+Previously invalidated at 141ce
+PC: 141e2
+PC: 15
+[CAPSLOCK] Bounds 0: f2490 -- f2494 (valid = 0, unsafecell = 0) @ 0x5555560cc798
+[CAPSLOCK] Parents unsafecell:
+[CAPSLOCK] Ty = 0, bounds = f2490 -- f2494 @0x5555560cbfb0
+[CAPSLOCK] Ty = 0, bounds = f2490 -- f2498 @0x5555560cb458
+
+
+helloworld: PASS
+violation detection: PASS
+Detected: Attempting to use an invalid capability for load
+Post-detection termination: required Ctrl+C under linux/amd64 emulation on Apple M5
+
+Host UID: 501
+Container UID: 1000
+
+QEMU base commit:
+6bb4a8a47a43f35a345f107227fcd6abed59e62c
+
+LLVM base commit:
+5399a24c66cb6164cf32280e7d300488c90d5765
+
+Rust base commit:
+c69fda7dc664e62f8920a02a4e55d6207b212c24
+
+Prebuilt Docker image digest:
+sha256:703591b7a949f8653e41cf2ffe9e7a4abe83e01feb54b294f64cdd67f79bfdf8

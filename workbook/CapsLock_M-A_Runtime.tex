@@ -1,0 +1,428 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=21mm,top=24mm,bottom=22mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{longtable}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{ink}{HTML}{1A1A18}
+\definecolor{mute}{HTML}{6B6A64}
+\definecolor{rule}{HTML}{D8D6CE}
+\definecolor{boxbg}{HTML}{F4F2EC}
+\definecolor{acc}{HTML}{7A4A28}
+\definecolor{warn}{HTML}{8A2B2B}
+\definecolor{ansbg}{HTML}{FFFDF7}
+
+\pagestyle{fancy}\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyhead[L]{\footnotesize\color{mute}CAPSLOCK LLVM ENGINE \ \textperiodcentered\ STUDENT WORKBOOK}
+\fancyhead[R]{\footnotesize\color{mute}\MSLABEL}
+\fancyfoot[L]{\footnotesize\color{mute}Internal}
+\fancyfoot[R]{\footnotesize\color{mute}Page \thepage}
+
+\setlist[enumerate]{leftmargin=6mm,itemsep=2pt,topsep=3pt}
+\setlist[itemize]{leftmargin=6mm,itemsep=2pt,topsep=3pt,label=\textemdash}
+
+\newcommand{\lbl}[1]{\vspace{5pt}\noindent{\scriptsize\bfseries\color{mute}\MakeUppercase{#1}}\par\vspace{1pt}}
+
+\newtcolorbox{notebox}{colback=boxbg,colframe=boxbg,boxrule=0pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt,breakable,before skip=6pt,after skip=6pt}
+
+\newtcolorbox{gatebox}[1][]{colback=boxbg,colframe=boxbg,boxrule=0pt,
+  borderline west={2.2pt}{0pt}{acc},left=6pt,right=6pt,top=6pt,bottom=6pt,
+  breakable,before skip=6pt,after skip=10pt,#1}
+
+\newtcolorbox{askbox}{colback=white,colframe=rule,boxrule=0.4pt,
+  borderline west={2.2pt}{0pt}{acc},left=6pt,right=6pt,top=5pt,bottom=5pt,
+  breakable,before skip=5pt,after skip=4pt}
+
+\newtcolorbox{answerbox}[1]{colback=ansbg,colframe=acc,boxrule=0.6pt,
+  left=6pt,right=6pt,top=5pt,bottom=5pt,breakable,
+  before skip=4pt,after skip=10pt,
+  title={\footnotesize\bfseries ANSWER \textemdash\ #1},
+  fonttitle=\normalfont,coltitle=white,colbacktitle=acc}
+
+\newcommand{\statusline}{\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[\ ]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}}
+
+\newcommand{\taskhead}[2]{\vspace{10pt}\noindent{\large\bfseries #1\quad #2}\par\vspace{2pt}}
+\newcommand{\hairline}{\vspace{7pt}\noindent\textcolor{rule}{\rule{\linewidth}{0.4pt}}\par\vspace{3pt}}
+\newcommand{\MSLABEL}{M-A \ \textperiodcentered\ RUNTIME, BEFORE ANY LLVM}
+
+
+
+\begin{document}
+\thispagestyle{fancy}
+
+\noindent{\Huge\bfseries M-A\ \ \textperiodcentered\ \ Runtime, before any LLVM}\par\vspace{2pt}
+\noindent{\color{mute}6\ tasks \ \textperiodcentered\ A1\ to A6}\par\vspace{8pt}
+
+\begin{notebox}
+You are building the algorithmic core of CapsLock before touching a compiler. Everything in this milestone is ordinary C. If you cannot make the algorithm work standalone, you will not be able to debug it through an instrumentation pass. Do not skip ahead to LLVM because it feels like the real work.
+\end{notebox}
+
+\begin{gatebox}
+{\scriptsize\bfseries\color{mute}Gate A}\par\vspace{2pt}
+{\bfseries Runtime validated with no LLVM involved. You can explain revoke-on-use at a whiteboard without notes.}
+\end{gatebox}
+
+\begin{notebox}
+{\scriptsize\bfseries\color{mute}HOW TO USE THIS FILE}\par\vspace{3pt}
+Fill in the \textsc{answer} box under each task and return this \texttt{.tex} file. Leave everything
+else untouched so the briefs stay comparable. Tick one status per task. Where the question asks for
+numbers, output or commit hashes, paste them into the \texttt{verbatim} block rather than describing
+them in prose. If a task is blocked, say what by; a blocked task and a slow task need different
+responses.\par\vspace{4pt}
+{\scriptsize\color{mute}Compile with \texttt{pdflatex}. Return the source, not the PDF.}
+\end{notebox}
+
+\vspace{4pt}
+\noindent\begin{tabular}{@{}p{34mm}p{120mm}@{}}
+\hline
+{\footnotesize\color{mute}Name} & \rule{0pt}{4.4mm}Zephyr Cheng \\
+\hline
+{\footnotesize\color{mute}Date submitted} & \rule{0pt}{4.4mm}13 August 2026 \\
+\hline
+{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm}Artefact pins plus local patches; see A1 evidence \\
+\hline
+{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm}Published artefact snapshot (not a Git worktree) \\
+\hline
+\end{tabular}
+
+\vspace{6pt}
+
+
+\taskhead{A1}{Reproduce the artefact}
+\lbl{Objective}
+Build capslock-qemu and the instrumented toolchain from the published artefact, and confirm it detects known violations.
+
+\lbl{Why this matters}
+This build is your ground truth for the entire project. Every claim you make later is measured against what it does. If you cannot reproduce it you cannot tell your own bugs from expected behaviour.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Pull or build the Docker image (./pull-docker or ./build-docker). Allow roughly 10 GB of disk.
+  \item Run ./docker-test. The helloworld program must print its greeting; the violation program must report an attempt to use an invalid capability for load.
+  \item Run ./docker-eval2 and compare the output against Table 4 of the paper.
+  \item Record the exact commit hashes of capslock-qemu, capslock-rust and capslock-llvm that you built.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Your user id must be at least 1000 for the Docker scripts to work.
+  \item Do not skip recording the commit hashes. You will need them for every differential comparison from M-G onward.
+\end{itemize}
+\lbl{Done when}
+docker-eval2 detects all 15 RustSec PoCs.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Did ./docker-eval2 detect all 15 RustSec PoCs, and how long did a clean build take end to end?}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A1}
+Yes. The combined CapsLock result detected all 15 RustSec PoCs. The published
+script hard-codes 16 parallel QEMU jobs, which exceeded the 8~GB Docker VM
+under Apple Silicon amd64 emulation and killed eight jobs; each of those eight
+detected correctly when rerun sequentially. A successful no-cache build took
+5776.11 seconds (1:36:16.11) after limiting the LLVM and Rust builds to two
+jobs. The timing is specific to the emulated environment.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+CapsLock: 15/15 RustSec PoCs detected
+Clean build: real 5776.11 s
+
+qemu upstream base + patch:
+  6bb4a8a47a43f35a345f107227fcd6abed59e62c
+llvm upstream base + patch:
+  5399a24c66cb6164cf32280e7d300488c90d5765
+rust upstream base + patch:
+  c69fda7dc664e62f8920a02a4e55d6207b212c24
+
+The artefact applies setup/patches/{qemu,llvm,rust}.patch to
+these upstream revisions; it does not contain separate fork commits.
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{A2}{Locate the LLVM submodule rewire}
+\lbl{Objective}
+Work out how capslock-llvm is substituted for upstream LLVM during the build.
+
+\lbl{Why this matters}
+The .gitmodules file in capslock-rust still declares src/llvm-project as rust-lang/llvm-project, branch rustc/18.0-2024-02-13. The CapsLock LLVM fork is not referenced there at all. Something in the setup path rewires it, and you need to know what before you can build a modified toolchain.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Grep the artefact setup directory for llvm-project, submodule and capslock-llvm.
+  \item Check config.toml or bootstrap.toml for an llvm-config path or an external LLVM setting.
+  \item Record the file, the line, and the capslock-llvm commit it lands on.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item If nothing rewires it, the build may be using a prebuilt LLVM. Find out which, and where it came from.
+\end{itemize}
+\lbl{Done when}
+You can name the file and line performing the substitution.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Which file or script repoints src/llvm-project to capslock-llvm, and which commit does it land on?}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A2}
+Nothing repoints Rust's \texttt{src/llvm-project} submodule. The artefact
+bypasses it. \texttt{setup/setup.py} fetches the pinned upstream LLVM tree and
+applies \texttt{setup/patches/llvm.patch}; \texttt{setup/build/llvm.sh} then
+installs that patched tree separately. During the Rust build,
+\texttt{rust.sh} generates \texttt{config.toml} with target-specific
+\texttt{llvm-config} entries pointing at the separate installation. Thus the
+substitution is through Rust's external LLVM configuration, not
+\texttt{.gitmodules}.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+setup/setup.py:9
+  llvm upstream revision:
+  5399a24c66cb6164cf32280e7d300488c90d5765
+setup/setup.py:22
+  patch -p1 < ../patches/llvm.patch
+setup/build/rust-config.toml:11
+  download-ci-llvm = false
+setup/build/rust-config.toml:31,34
+  llvm-config = "LLVM_LOCATION/installation/bin/llvm-config"
+setup/build/rust.sh:2
+  replaces LLVM_LOCATION and writes rust/config.toml
+resolved path in Docker:
+  /capslock-tools/llvm/installation/bin/llvm-config
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{A3}{Decompose the overhead}
+\lbl{Objective}
+Measure where the time actually goes in the existing implementation.
+
+\lbl{Why this matters}
+Three multiplicative costs are conflated in the published performance numbers: cross-ISA emulation, unoptimised guest code, and the capability checking itself. Only the third is intrinsic to the idea. If you optimise before you measure, you may spend months on the smallest term.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Pick one workload and keep it fixed for the whole project. Decompression in zlib-rs is a reasonable choice because it is pointer-chasing dense.
+  \item Time it four ways: (a) native x86-64; (b) stock qemu-riscv64 running the unoptimised RISC-V binary; (c) capslock-qemu with the capability instructions stubbed to no-ops; (d) full capslock-qemu.
+  \item Produce a ratio table. Write down the exact command lines and the host machine.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Use the same input and iteration count for all four measurements.
+  \item You will be asked to reproduce this measurement identically at task G1. Document the method now, not later.
+\end{itemize}
+\lbl{Done when}
+Four wall-clock numbers and a ratio table.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{What are the four numbers, and what fraction of the slowdown is capability checking rather than emulation?}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A3}
+The fixed workload performed 100 compression/decompression iterations per
+measurement on a separate x86-64 machine. Each configuration was measured
+five times; the values below are arithmetic means. Full checking is
+$22.133\times$ the no-op CapsLock configuration. Under an absolute elapsed-time
+decomposition, checking contributes 95.526\% of the full-over-native slowdown:
+$(T_{full}-T_{stub})/(T_{full}-T_{native})$. The complementary 4.474\% includes
+no-op CapsLock, instrumented-guest and emulation costs, so it must not be
+labelled pure cross-ISA emulation overhead.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+variant                         mean seconds   ratio/native
+native x86-64                     0.014996        1.000x
+stock qemu-riscv64                0.170234       11.352x
+CapsLock QEMU, checks stubbed      1.456172       97.104x
+full CapsLock QEMU               32.230098     2149.246x
+
+full / stub = 22.133x
+(full - stub) / (full - native) = 95.526%
+(stub - native) / (full - native) = 4.474%
+
+Before G1, append from the x86-64 host: CPU/OS, exact commands,
+workload revision and input hash, build flags, QEMU revisions,
+warm-up policy, and the five raw samples for every variant.
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{A4}{Runtime core}
+\lbl{Objective}
+Write libcapslock.c implementing revoke-on-use, with no compiler involvement whatsoever.
+
+\lbl{Why this matters}
+This is the algorithmic heart of the project. It is ordinary C and can be fully unit-tested standalone. Debugging it later through an instrumentation pass is considerably harder.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Structures: an allocation table mapping address range to tree root; a node arena; per-node parent, child and sibling links; bounds; and a permission of RW, RO or NA.
+  \item Implement borrow(node, mutable, base, end) returning a new node.
+  \item Implement access(node, range, is\_write) returning whether the access is allowed, following the Store and Load rules in Table 2 of the paper: invalidate the subtrees of capabilities that overlap the accessed address and are not ancestors of the accessing capability.
+  \item Implement revoke(node), invalidating the subtree.
+  \item Use a hash map for shadow memory. Do not optimise anything yet.
+  \item Read, but do not copy: target/riscv/cap\_rev\_tree.c and .h in capslock-qemu, and borrow\_impl() at target/riscv/op\_helper.c line 709.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Walk from the accessing node up to the root, killing sibling subtrees as you go. Do not scan the whole tree. That difference is amortised constant time per access versus linear.
+  \item Appendix A of the paper defines RevPermW and RevPermR with the two cases inverted relative to the prose in section 4.2. The prose is correct: capabilities in the set become NA.
+\end{itemize}
+\lbl{Done when}
+C unit tests pass for borrow, access, revoke and nested borrow.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Driven only by direct C calls, does your runtime accept a nested borrow chain and reject a use-after-revoke? Paste the test output.}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A4}
+Yes. Driven only by direct C calls, the standalone runtime accepts a valid
+nested borrow chain and rejects a later access through a revoked descendant.
+It implements the allocation table, node arena, parent/child/sibling borrow
+trees, bounds, RW/RO/NA permissions, shadow memory, borrow, access and subtree
+revocation. The complete standalone A4/A5 suite passes 9/9 tests.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+[PASS] create and shadow map
+[PASS] borrow permissions and bounds
+nested borrow chain: accepted
+use-after-revoke: rejected (attempting to use an invalid capability)
+[PASS] nested borrow and revoke
+[PASS] store invalidation
+[PASS] load invalidation
+[PASS] disjoint partial borrows
+[PASS] RAW versus REF
+[PASS] UnsafeCell relaxation
+[PASS] access checks
+9/9 runtime tests passed
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{A5}{Node type bits}
+\lbl{Objective}
+Add the compatibility adjustments described in section 5.1 of the paper.
+
+\lbl{Why this matters}
+Without these, real Rust code produces false positives immediately. Raw pointers and interior mutability both need relaxed rules.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Add a type field with three values mirroring the reference implementation: REF, RAW and UNSAFECELL. See cap\_rev\_node\_type\_t in cap\_rev\_tree.h.
+  \item Raw pointers: while a raw-pointer capability is valid, no store may alias it unless through a capability derived from its parent.
+  \item Interior mutability: except aliasing stores originating within the subtree of an UnsafeCell capability.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item The reference tracks UnsafeCell subtrees in a separate hash table with previous and next links. You probably do not need that complexity yet, but read it before designing your own.
+\end{itemize}
+\lbl{Done when}
+Tests cover raw-pointer relaxation and interior mutability.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Which of the three node types are implemented, and what test distinguishes RAW from REF behaviour?}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A5}
+All three node types are implemented: REF, RAW and UNSAFECELL. The RAW-versus-
+REF test creates RAW and REF siblings with identical bounds, then stores
+through a third capability derived from their common parent. The REF subtree
+becomes NA, whereas RAW remains RW because the store originated inside its
+parent's subtree. A separate test verifies that a store below an UNSAFECELL
+capability receives the interior-mutability relaxation.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+[PASS] RAW versus REF
+[PASS] UnsafeCell relaxation
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{A6}{Hand-written oracle programs}
+\lbl{Objective}
+Encode the paper's examples as plain C that calls your runtime by hand.
+
+\lbl{Why this matters}
+This is the step people skip, and skipping it makes M-B considerably harder. Once you have written the instrumentation by hand, the compiler pass's job becomes concrete: generate the code you already wrote.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Encode the three cases in Listing 1: use-after-free, data race, and unsafe aliasing.
+  \item Encode Figure 3: create, then borrow to get v\_raw, then borrow again to get v\_ref, then store through v\_raw, then use v\_ref. The last use must be rejected.
+  \item Add five reduced RustSec patterns taken from the PoCs in the artefact.
+  \item For each case write a clean variant that must pass.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item If a clean variant fails you have a false positive. Those matter more than misses. Fix them first.
+\end{itemize}
+\lbl{Done when}
+Each case flags at the correct line; each clean variant passes.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Which of the eight hand-written cases flag correctly? For each miss, is the cause the algorithm or the test encoding?}
+\end{askbox}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\begin{answerbox}{A6}
+The method actually requests nine cases (three from Listing~1, one from
+Figure~3, and five RustSec reductions), although the final question says
+eight. All nine flag at their annotated direct-C access line: Listing~1(a)
+use-after-free, Listing~1(b) data race, Listing~1(c) unsafe aliasing, Figure~3,
+RUSTSEC-2020-0023, RUSTSEC-2022-0002, RUSTSEC-2021-0114,
+RUSTSEC-2019-0009 and RUSTSEC-2022-0007. There are no misses to classify as an
+algorithm or encoding error, and all nine clean variants pass.
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+9/9 buggy cases flagged; 9/9 clean variants passed
+\end{verbatim}
+\end{answerbox}
+
+\vspace{10pt}
+
+\begin{gatebox}
+
+{\scriptsize\bfseries\color{mute}GATE A -{}- SIGN-OFF}\par\vspace{3pt}
+
+{\bfseries Runtime validated with no LLVM involved. You can explain revoke-on-use at a whiteboard without notes.}\par\vspace{5pt}
+
+\texttt{[X]}~Gate met \qquad \texttt{[\ ]}~Not met\par\vspace{4pt}
+
+{\scriptsize\color{mute}If not met, state which task is outstanding and why:}
+
+\begin{verbatim}
+
+\end{verbatim}
+
+\end{gatebox}
+
+\end{document}

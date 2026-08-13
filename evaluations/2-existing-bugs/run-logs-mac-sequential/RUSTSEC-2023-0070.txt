@@ -1,0 +1,6 @@
+Hello World
+[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560d7110, 898) addr = f6520, size = 11 @ pc = 18a00
+!Previously invalidated at 1415e
+PC: b04b4
+> 0x5555560d7110: 0 0 f6520 f652b
+> 0x5555560d3960: 0 0 f6520 f6530

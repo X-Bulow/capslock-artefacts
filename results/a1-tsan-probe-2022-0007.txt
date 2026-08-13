@@ -1,0 +1,21 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded once_cell v1.20.1
+  Downloaded portable-atomic v1.9.0
+   Compiling once_cell v1.20.1
+   Compiling qcell v0.4.2 (/workdir/2-existing-bugs/PoCs/RUSTSEC-2022-0007/qcell-0.4.2)
+   Compiling poc v0.1.0 (/workdir/2-existing-bugs/PoCs/RUSTSEC-2022-0007/poc)
+warning: variable does not need to be mutable
+  --> src/main.rs:21:9
+   |
+21 |     let mut x = TCell::<T2, _>::new(vec!["Hello World!".to_owned()]);
+   |         ----^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: `poc` (bin "poc") generated 1 warning (run `cargo fix --bin "poc"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.76s
+ThreadSanitizer: CHECK failed: tsan_platform_linux.cpp:282 "((personality(old_personality | ADDR_NO_RANDOMIZE))) != ((-1))" (0xffffffffffffffff, 0xffffffffffffffff) (tid=182)
+Segmentation fault

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+docker run -it --rm -v $(realpath "./evaluations"):/workdir -w /workdir/2-existing-bugs capslock-artefacts \
+    /bin/sh just-run.sh $@

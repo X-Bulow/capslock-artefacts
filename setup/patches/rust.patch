@@ -1,0 +1,1132 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 3290741f128..bd98a5f3b73 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3622,6 +3622,7 @@ dependencies = [
+  "rustc_macros",
+  "rustc_metadata",
+  "rustc_middle",
++ "rustc_mir_transform",
+  "rustc_query_system",
+  "rustc_session",
+  "rustc_span",
+diff --git a/compiler/rustc_abi/src/lib.rs b/compiler/rustc_abi/src/lib.rs
+index 4f2b9d0ef50..68eeae1c819 100644
+--- a/compiler/rustc_abi/src/lib.rs
++++ b/compiler/rustc_abi/src/lib.rs
+@@ -427,7 +427,7 @@ fn from_str(s: &str) -> Result<Self, Self::Err> {
+ #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ #[cfg_attr(feature = "nightly", derive(Encodable_Generic, Decodable_Generic, HashStable_Generic))]
+ pub struct Size {
+-    raw: u64,
++    pub raw: u64,
+ }
+ 
+ // Safety: Ord is implement as just comparing numerical values and numerical values
+diff --git a/compiler/rustc_codegen_gcc/src/builder.rs b/compiler/rustc_codegen_gcc/src/builder.rs
+index f5cda81f6ab..ca70d39dc77 100644
+--- a/compiler/rustc_codegen_gcc/src/builder.rs
++++ b/compiler/rustc_codegen_gcc/src/builder.rs
+@@ -1032,6 +1032,7 @@ fn scalar_load_metadata<'a, 'gcc, 'tcx>(
+         } else {
+             OperandValue::Ref(place.llval, None, place.align)
+         };
++        println!("This is compiled to the GCC backend!!! OperandValue: {:?}", &val);
+ 
+         OperandRef { val, layout: place.layout }
+     }
+diff --git a/compiler/rustc_codegen_llvm/Cargo.toml b/compiler/rustc_codegen_llvm/Cargo.toml
+index 3fda59e8b52..a04ee500f38 100644
+--- a/compiler/rustc_codegen_llvm/Cargo.toml
++++ b/compiler/rustc_codegen_llvm/Cargo.toml
+@@ -27,6 +27,7 @@ rustc_llvm = { path = "../rustc_llvm" }
+ rustc_macros = { path = "../rustc_macros" }
+ rustc_metadata = { path = "../rustc_metadata" }
+ rustc_middle = { path = "../rustc_middle" }
++rustc_mir_transform = { path = "../rustc_mir_transform" }
+ rustc_query_system = { path = "../rustc_query_system" }
+ rustc_session = { path = "../rustc_session" }
+ rustc_span = { path = "../rustc_span" }
+diff --git a/compiler/rustc_codegen_llvm/src/builder.rs b/compiler/rustc_codegen_llvm/src/builder.rs
+index ca2e2b57580..cc5bd0368b2 100644
+--- a/compiler/rustc_codegen_llvm/src/builder.rs
++++ b/compiler/rustc_codegen_llvm/src/builder.rs
+@@ -20,6 +20,7 @@
+     FnAbiError, FnAbiOfHelpers, FnAbiRequest, LayoutError, LayoutOfHelpers, TyAndLayout,
+ };
+ use rustc_middle::ty::{self, Ty, TyCtxt};
++// use rustc_mir_transform::IS_BOOTSTRAP;
+ use rustc_span::Span;
+ use rustc_symbol_mangling::typeid::{kcfi_typeid_for_fnabi, typeid_for_fnabi, TypeIdOptions};
+ use rustc_target::abi::{self, call::FnAbi, Align, Size, WrappingRange};
+@@ -30,6 +31,8 @@
+ use std::ops::Deref;
+ use std::ptr;
+ 
++// static mut SCALED_REF:Vec<usize> = vec![];
++
+ // All Builders must have an llfn associated with them
+ #[must_use]
+ pub struct Builder<'a, 'll, 'tcx> {
+@@ -572,7 +575,21 @@ fn scalar_load_metadata<'a, 'll, 'tcx>(
+             }
+         }
+ 
++        // let place_layout = place.layout.clone();
++        // let size_raw_ref = &place_layout.layout.0.0.size.raw;
++        // let size_addr = size_raw_ref as *const u64 as usize;
++        // let size_addr_1 = size_addr + 1;
++        // let size_addr_2 = size_addr_1 - 1;
++        // let size_ref = size_addr_2 as *mut u64;
++
+         let val = if let Some(llextra) = place.llextra {
++            // unsafe {
++            //     if !SCALED_REF.contains(&size_addr_2) && !IS_BOOTSTRAP { 
++            //         *size_ref = place.layout.layout.0.0.size.bytes() + 8;
++            //         SCALED_REF.push(size_addr_2.clone());
++            //     } 
++            // }
++            // println!("This is compiled to the LLVM backend!!! OperandValue: {:?}, and layout: {:?}", &OperandValue::Ref(place.llval, Some(llextra), place.align), &place.layout.layout.0.0.size);
+             OperandValue::Ref(place.llval, Some(llextra), place.align)
+         } else if place.layout.is_llvm_immediate() {
+             let mut const_llval = None;
+@@ -616,6 +633,13 @@ fn scalar_load_metadata<'a, 'll, 'tcx>(
+                 load(1, b, place.layout, place.align.restrict_for_offset(b_offset), b_offset),
+             )
+         } else {
++            // unsafe {
++            //     if !SCALED_REF.contains(&size_addr_2) && !IS_BOOTSTRAP { 
++            //         *size_ref = place.layout.layout.0.0.size.bytes() + 8;
++            //         SCALED_REF.push(size_addr_2.clone());
++            //     }
++            // }
++            // println!("This is compiled to the LLVM backend!!! OperandValue: {:?}, and layout: {:?}", &OperandValue::Ref(place.llval, None, place.align), &place.layout.layout.0.0.size);
+             OperandValue::Ref(place.llval, None, place.align)
+         };
+ 
+diff --git a/compiler/rustc_codegen_ssa/src/mir/operand.rs b/compiler/rustc_codegen_ssa/src/mir/operand.rs
+index 932926976b5..8ceddc2f2d7 100644
+--- a/compiler/rustc_codegen_ssa/src/mir/operand.rs
++++ b/compiler/rustc_codegen_ssa/src/mir/operand.rs
+@@ -222,7 +222,7 @@ pub fn deref<Cx: LayoutTypeMethods<'tcx>>(self, cx: &Cx) -> PlaceRef<'tcx, V> {
+             OperandValue::ZeroSized => bug!("Deref of ZST operand {:?}", self),
+         };
+         let layout = cx.layout_of(projected_ty);
+-        PlaceRef { llval: llptr, llextra, layout, align: layout.align.abi }
++        PlaceRef { llval: llptr, capab: 0, llextra, layout, align: layout.align.abi }
+     }
+ 
+     /// If this operand is a `Pair`, we return an aggregate with the two values.
+diff --git a/compiler/rustc_codegen_ssa/src/mir/place.rs b/compiler/rustc_codegen_ssa/src/mir/place.rs
+index 1ec6c351e25..6f709966885 100644
+--- a/compiler/rustc_codegen_ssa/src/mir/place.rs
++++ b/compiler/rustc_codegen_ssa/src/mir/place.rs
+@@ -17,6 +17,8 @@ pub struct PlaceRef<'tcx, V> {
+     /// A pointer to the contents of the place.
+     pub llval: V,
+ 
++    pub capab: u128,
++
+     /// This place's extra data if it is unsized, or `None` if null.
+     pub llextra: Option<V>,
+ 
+@@ -30,7 +32,7 @@ pub struct PlaceRef<'tcx, V> {
+ impl<'a, 'tcx, V: CodegenObject> PlaceRef<'tcx, V> {
+     pub fn new_sized(llval: V, layout: TyAndLayout<'tcx>) -> PlaceRef<'tcx, V> {
+         assert!(layout.is_sized());
+-        PlaceRef { llval, llextra: None, layout, align: layout.align.abi }
++        PlaceRef { llval, capab: 0, llextra: None, layout, align: layout.align.abi }
+     }
+ 
+     pub fn new_sized_aligned(
+@@ -39,7 +41,7 @@ pub fn new_sized_aligned(
+         align: Align,
+     ) -> PlaceRef<'tcx, V> {
+         assert!(layout.is_sized());
+-        PlaceRef { llval, llextra: None, layout, align }
++        PlaceRef { llval, capab: 0, llextra: None, layout, align }
+     }
+ 
+     // FIXME(eddyb) pass something else for the name so no work is done
+@@ -109,6 +111,7 @@ pub fn project_field<Bx: BuilderMethods<'a, 'tcx, Value = V>>(
+             };
+             PlaceRef {
+                 llval,
++                capab: 0,
+                 llextra: if bx.cx().type_has_metadata(field.ty) { self.llextra } else { None },
+                 layout: field,
+                 align: effective_field_align,
+@@ -166,7 +169,7 @@ pub fn project_field<Bx: BuilderMethods<'a, 'tcx, Value = V>>(
+         // Adjust pointer.
+         let ptr = bx.inbounds_ptradd(self.llval, offset);
+ 
+-        PlaceRef { llval: ptr, llextra: self.llextra, layout: field, align: effective_field_align }
++        PlaceRef { llval: ptr, capab: 0, llextra: self.llextra, layout: field, align: effective_field_align }
+     }
+ 
+     /// Obtain the actual discriminant of a value.
+@@ -362,6 +365,7 @@ pub fn project_index<Bx: BuilderMethods<'a, 'tcx, Value = V>>(
+                 self.llval,
+                 &[bx.cx().const_usize(0), llindex],
+             ),
++            capab: 0,
+             llextra: None,
+             layout,
+             align: self.align.restrict_for_offset(offset),
+diff --git a/compiler/rustc_driver_impl/src/lib.rs b/compiler/rustc_driver_impl/src/lib.rs
+index 2802f44cda7..4e895d2c765 100644
+--- a/compiler/rustc_driver_impl/src/lib.rs
++++ b/compiler/rustc_driver_impl/src/lib.rs
+@@ -44,6 +44,7 @@
+ use rustc_span::FileName;
+ use rustc_target::json::ToJson;
+ use rustc_target::spec::{Target, TargetTriple};
++use rustc_mir_transform::IS_BOOTSTRAP;
+ 
+ use std::cmp::max;
+ use std::collections::BTreeMap;
+@@ -193,7 +194,7 @@ fn config(&mut self, config: &mut interface::Config) {
+         //
+         self.time_passes = (config.opts.prints.is_empty() && config.opts.unstable_opts.time_passes)
+             .then(|| config.opts.unstable_opts.time_passes_format);
+-        config.opts.trimmed_def_paths = true;
++        config.opts.trimmed_def_paths = false;      // This was 'true' earlier and was causing an ugly error that I had to evade anyhow
+     }
+ }
+ 
+@@ -1506,6 +1507,19 @@ pub fn init_logger(early_dcx: &EarlyDiagCtxt, cfg: rustc_log::LoggerConfig) {
+ }
+ 
+ pub fn main() -> ! {
++    unsafe {
++        for (key, value) in env::vars() {
++            if key.starts_with("RUSTC_BOOTSTRAP") && (value == "1") {
++                IS_BOOTSTRAP = true;
++                break;
++            }
++        }
++
++        if !IS_BOOTSTRAP {
++            eprintln!("\nCompiling using CapsLock custom compiler\n");
++        }
++    }
++
+     let start_time = Instant::now();
+     let start_rss = get_resident_set_size();
+ 
+diff --git a/compiler/rustc_interface/src/passes.rs b/compiler/rustc_interface/src/passes.rs
+index 4b4c1d6cf67..480639655b3 100644
+--- a/compiler/rustc_interface/src/passes.rs
++++ b/compiler/rustc_interface/src/passes.rs
+@@ -548,7 +548,7 @@ fn resolver_for_lowering_raw<'tcx>(
+         global_ctxt: untracked_resolutions,
+         ast_lowering: untracked_resolver_for_lowering,
+     } = resolver.into_outputs();
+-
++    
+     let resolutions = tcx.arena.alloc(untracked_resolutions);
+     (tcx.arena.alloc(Steal::new((untracked_resolver_for_lowering, Lrc::new(krate)))), resolutions)
+ }
+diff --git a/compiler/rustc_mir_build/src/build/block.rs b/compiler/rustc_mir_build/src/build/block.rs
+index 4046122b6fe..efd752f2215 100644
+--- a/compiler/rustc_mir_build/src/build/block.rs
++++ b/compiler/rustc_mir_build/src/build/block.rs
+@@ -354,6 +354,7 @@ fn ast_block_stmts(
+             {
+                 // We only want to assign an implicit `()` as the return value of the block if the
+                 // block does not diverge. (Otherwise, we may try to assign a unit to a `!`-type.)
++                
+                 this.cfg.push_assign_unit(block, source_info, destination, this.tcx);
+             }
+         }
+diff --git a/compiler/rustc_mir_build/src/build/expr/stmt.rs b/compiler/rustc_mir_build/src/build/expr/stmt.rs
+index 7f5e45e20cc..92cb7860452 100644
+--- a/compiler/rustc_mir_build/src/build/expr/stmt.rs
++++ b/compiler/rustc_mir_build/src/build/expr/stmt.rs
+@@ -146,4 +146,4 @@ pub(crate) fn stmt_expr(
+             }
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/compiler/rustc_mir_build/src/build/mod.rs b/compiler/rustc_mir_build/src/build/mod.rs
+index 294b27def16..c73cedeb2bf 100644
+--- a/compiler/rustc_mir_build/src/build/mod.rs
++++ b/compiler/rustc_mir_build/src/build/mod.rs
+@@ -1115,6 +1115,6 @@ pub(crate) fn parse_float_into_scalar(
+ mod expr;
+ mod matches;
+ mod misc;
+-mod scope;
++pub mod scope;
+ 
+ pub(crate) use expr::category::Category as ExprCategory;
+diff --git a/compiler/rustc_mir_build/src/build/scope.rs b/compiler/rustc_mir_build/src/build/scope.rs
+index 961502566ba..329a24ab491 100644
+--- a/compiler/rustc_mir_build/src/build/scope.rs
++++ b/compiler/rustc_mir_build/src/build/scope.rs
+@@ -1503,4 +1503,4 @@ fn add_entry(cfg: &mut CFG<'tcx>, from: BasicBlock, to: BasicBlock) {
+             }
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/compiler/rustc_mir_build/src/lib.rs b/compiler/rustc_mir_build/src/lib.rs
+index e3f202b7f18..2bdaf6ae4d4 100644
+--- a/compiler/rustc_mir_build/src/lib.rs
++++ b/compiler/rustc_mir_build/src/lib.rs
+@@ -17,7 +17,7 @@
+ #[macro_use]
+ extern crate rustc_middle;
+ 
+-mod build;
++pub mod build;
+ mod check_unsafety;
+ mod errors;
+ pub mod lints;
+diff --git a/compiler/rustc_mir_dataflow/src/elaborate_drops.rs b/compiler/rustc_mir_dataflow/src/elaborate_drops.rs
+index 1b2f2cd9477..fc8581a1b82 100644
+--- a/compiler/rustc_mir_dataflow/src/elaborate_drops.rs
++++ b/compiler/rustc_mir_dataflow/src/elaborate_drops.rs
+@@ -989,4 +989,4 @@ fn assign(&self, lhs: Place<'tcx>, rhs: Rvalue<'tcx>) -> Statement<'tcx> {
+             kind: StatementKind::Assign(Box::new((lhs, rhs))),
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/compiler/rustc_mir_transform/src/dest_prop.rs b/compiler/rustc_mir_transform/src/dest_prop.rs
+index 10fea09531a..5bd2711f1e1 100644
+--- a/compiler/rustc_mir_transform/src/dest_prop.rs
++++ b/compiler/rustc_mir_transform/src/dest_prop.rs
+@@ -249,6 +249,7 @@ fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+ 
+             apply_merges(body, tcx, &merges, &merged_locals);
+         }
++        println!("Destination Propagation Rounds: {}", round_count);
+ 
+         trace!(round_count);
+     }
+diff --git a/compiler/rustc_mir_transform/src/inject_capslock.rs b/compiler/rustc_mir_transform/src/inject_capslock.rs
+new file mode 100644
+index 00000000000..ef3448d0302
+--- /dev/null
++++ b/compiler/rustc_mir_transform/src/inject_capslock.rs
+@@ -0,0 +1,330 @@
++#![allow(unused)]
++
++use interpret::Scalar;
++// use itertools::Itertools;
++// use std::collections::VecDeque;
++use rustc_middle::mir::patch::MirPatch;
++use rustc_middle::ty::ty_kind::TyKind;
++use rustc_middle::ty::{TypeAndMut, Ty};
++use crate::{Spanned};
++use rustc_index::{IndexVec, IndexSlice};
++use rustc_middle::mir::*;
++use rustc_middle::mir::visit::MutVisitor;
++use rustc_middle::ty::{self, ParamEnv, TyCtxt};
++// use rustc_data_structures::fx::{FxHashMap, FxHashSet};
++use rustc_span::def_id::{DefIndex, DefId, CrateNum};
++use rustc_middle::ty::{List, GenericArg};
++use rustc_span::DUMMY_SP;
++static SPANS: [rustc_span::Span; 1] = [DUMMY_SP];
++
++// Taken directly from another Rust MIR pass
++struct BasicBlockUpdater<'tcx> {
++    map: IndexVec<BasicBlock, BasicBlock>,
++    tcx: TyCtxt<'tcx>,
++}
++
++// Taken directly from another Rust MIR pass
++impl<'tcx> MutVisitor<'tcx> for BasicBlockUpdater<'tcx> {
++    fn tcx(&self) -> TyCtxt<'tcx> {
++        self.tcx
++    }
++
++    fn visit_terminator(&mut self, terminator: &mut Terminator<'tcx>, _location: Location) {
++        for succ in terminator.successors_mut() {
++            *succ = self.map[*succ];
++        }
++    }
++}
++pub struct InjectCapsLock;
++
++fn get_func_def_id<'ctx>(tcx: TyCtxt<'ctx>, crate_num_opt: Option<CrateNum>, func_name: &str) -> Option<DefId> {
++    match crate_num_opt {
++        Some (crate_num) => {
++            // Dynamically locate the function we want to inject, instead of hardcoding its definition index
++            let def_index = DefIndex::from_usize(0);
++            let mut _def_id = DefId { krate: crate_num, index: def_index };
++            let mut _def_id_int = 0;
++            let mut name = tcx.def_path_str(_def_id);
++
++            // Check whether the thing being borrowed was mutable. This changes the nature of the function we are injecting.
++            // Future note: I am unsure if two different functions based on this is even required.  should definitely have the two functions, for manual injection needs it.
++            // But it may not be necessary for injecting at the MIR level. Mutability consistency is checked before this level is reached.
++            while !name.ends_with(func_name) {
++                _def_id_int += 1;
++                _def_id = DefId { krate: crate_num, index: DefIndex::from_usize(_def_id_int) };
++                name = tcx.def_path_str(_def_id);
++            }
++            if !name.ends_with(func_name) {
++                None
++            } else {
++                Some(_def_id)
++            }
++        }
++        None => {
++            // look for it locally
++            tcx.iter_local_def_id().find_map(
++                |local_def_id| {
++                    if tcx.def_path_str(local_def_id.to_def_id()).ends_with(func_name) {
++                        Some (local_def_id.to_def_id())
++                    } else {
++                        None
++                    }
++                }
++            )
++        }
++    }
++}
++
++fn get_pointee_type<'ctx>(ty : Ty<'ctx>) -> Option<Ty<'ctx>> {
++    match ty.kind() {
++        ty::RawPtr(TypeAndMut {ty : inner_ty, ..}) => Some(*inner_ty),
++        ty::Ref(_, inner_ty, _) => Some(*inner_ty),
++        _ => None
++    }
++}
++
++fn insert_call<'ctx>(tcx: TyCtxt<'ctx>, func: DefId, generic_args: &[GenericArg<'ctx>], args: Vec<Spanned<Operand<'ctx>>>,
++        patch: &mut MirPatch<'ctx>, bb: BasicBlock, data: &mut BasicBlockData<'ctx>, i: usize,
++        lhs: &Place<'ctx>) {
++    // Shift all the statements beyond our target statement to a new vector and clear them from the original block
++    let new_stmts = data.statements.split_off(i + 1);
++    let unwind_action = UnwindAction::Terminate(UnwindTerminateReason::Abi);
++
++    // Create an intermediary block that will be inserted between the current block and the next block
++    // This block has to point to the next block in the control flow graph (that terminator is an Option type)
++    let block = patch.new_block(BasicBlockData {
++        statements: new_stmts.clone(),
++        terminator: Some(data.terminator.as_ref().unwrap().clone()),
++        is_cleanup: data.is_cleanup.clone(),
++    });
++
++    let def_id = func;
++
++    let generic_args = tcx.mk_args(generic_args);
++
++    // Creating the sugar of all the structures for the function type to be injected
++    let ty_ = Ty::new(tcx, ty::FnDef(def_id, generic_args));
++    let const_ = Const::Val(ConstValue::ZeroSized, ty_);
++    let const_operand = Box::new(ConstOperand { span: SPANS[0], user_ty: None, const_: const_ });
++    let operand_ = Operand::Constant(const_operand);
++
++    let dest_place = Place {local: (lhs.local).into(), projection: List::empty()};  // Every function has to have a target place where it will store its return value
++
++    // Create a block terminator that will execute the function call we want to inject. This terminator points from current block to our intermediary block
++    let intermediary_terminator = TerminatorKind::Call {
++        func: operand_,
++        args: args,
++        destination: dest_place,
++        target: Some(block),
++        unwind: unwind_action,
++        call_source: CallSource::Normal,
++        fn_span: SPANS[0],
++    };
++
++    patch.patch_terminator(bb, intermediary_terminator);
++}
++
++
++fn get_borrow_func_name(m: &Mutability, is_ref: bool, is_local: bool) -> &'static str {
++    if is_local {
++        match (*m, is_ref) {
++            (Mutability::Mut, false) => "capslock::borrow_mut",
++            (Mutability::Not, false) => "capslock::borrow",
++            (Mutability::Mut, true) => "capslock::borrow_mut_ref",
++            (Mutability::Not, true) => "capslock::borrow_ref",
++        }
++    } else {
++        match (*m, is_ref) {
++            (Mutability::Mut, false) => "capslock::borrow_mut",
++            (Mutability::Not, false) => "capslock::borrow",
++            (Mutability::Mut, true) => "capslock::borrow_mut_ref",
++            (Mutability::Not, true) => "capslock::borrow_ref",
++        }
++    }
++}
++
++fn insert_borrow<'ctx>(tcx: TyCtxt<'ctx>, capslock_crate_number : Option<CrateNum>,
++        patch: &mut MirPatch<'ctx>, bb: BasicBlock, data: &mut BasicBlockData<'ctx>, i: usize,
++        mutability: &Mutability, lhs_type: Ty<'ctx>, lhs: &Place<'ctx>, is_unsafe_cell : bool,
++        is_foreign : bool) {
++    eprintln!("Insert borrow (UnsafeCell = {}, Foreign = {}): {:?}", is_unsafe_cell, is_foreign, lhs_type);
++
++    let pointer_type : u8 = match lhs_type.kind() {
++        crate::ty::RawPtr(tm) => {
++            if is_unsafe_cell {
++                2 // unafe cell
++            } else {
++                1 // plain raw pointer
++            }
++        }
++        _ => 0 // reference
++    };
++
++    let func = get_func_def_id(tcx, capslock_crate_number,
++        get_borrow_func_name(mutability, lhs_type.is_ref(), capslock_crate_number.is_none())
++    ).expect("Unable to find function.");
++
++    let root_ty = get_pointee_type(lhs_type).unwrap();
++    // The generic argument that goes inside the <> brackets of the function call. This is why we obtained the root type
++    let generic_arg = GenericArg::from(root_ty);
++
++    // This is how we create the arguments to be passed to the function that we are calling
++    let operand_input = Operand::Copy(Place {local: lhs.local, projection: List::empty()});
++    let spanned_operand = Spanned { span: SPANS[0], node: operand_input };
++
++    let operand_pointer_type = Operand::const_from_scalar(tcx, Ty::new(tcx, ty::Uint(ty::UintTy::U8)), Scalar::from_u8(pointer_type), SPANS[0]);
++    let spanned_operand_pointer_type = Spanned { span: SPANS[0], node: operand_pointer_type };
++
++    let operand_is_foreign = Operand::const_from_scalar(tcx, Ty::new(tcx, ty::Bool), Scalar::from_bool(is_foreign), SPANS[0]);
++    let spanned_operand_is_foreign = Spanned { span: SPANS[0], node: operand_is_foreign };
++    let args = vec![spanned_operand, spanned_operand_pointer_type, spanned_operand_is_foreign];
++
++    insert_call(tcx, func, &[generic_arg], args, patch, bb, data, i, lhs)
++}
++
++fn get_shrink_func_name(m: &Mutability, is_ref: bool, is_local: bool) -> &'static str {
++    if is_local {
++        match (*m, is_ref) {
++            (Mutability::Mut, false) => "capslock::shrink_mut",
++            (Mutability::Not, false) => "capslock::shrink",
++            (Mutability::Mut, true) => "capslock::shrink_mut_ref",
++            (Mutability::Not, true) => "capslock::shrink_ref",
++        }
++    } else {
++        match (*m, is_ref) {
++            (Mutability::Mut, false) => "capslock::shrink_mut",
++            (Mutability::Not, false) => "capslock::shrink",
++            (Mutability::Mut, true) => "capslock::shrink_mut_ref",
++            (Mutability::Not, true) => "capslock::shrink_ref",
++        }
++    }
++}
++
++
++fn insert_shrink<'ctx>(tcx: TyCtxt<'ctx>, capslock_crate_number : Option<CrateNum>,
++        patch: &mut MirPatch<'ctx>, bb: BasicBlock, data: &mut BasicBlockData<'ctx>, i: usize,
++        mutability: &Mutability, lhs_type: Ty<'ctx>, lhs: &Place<'ctx>,
++        is_foreign : bool) {
++
++    let func = get_func_def_id(tcx, capslock_crate_number,
++        get_shrink_func_name(mutability, lhs_type.is_ref(), capslock_crate_number.is_none())
++    ).expect("Unable to find function.");
++
++    let root_ty = get_pointee_type(lhs_type).unwrap();
++    // The generic argument that goes inside the <> brackets of the function call. This is why we obtained the root type
++    let generic_arg = GenericArg::from(root_ty);
++
++    // This is how we create the arguments to be passed to the function that we are calling
++    let operand_input = Operand::Copy(Place {local: lhs.local, projection: List::empty()});
++    let spanned_operand = Spanned { span: SPANS[0], node: operand_input };
++
++    let operand_is_foreign = Operand::const_from_scalar(tcx, Ty::new(tcx, ty::Bool), Scalar::from_bool(is_foreign), SPANS[0]);
++    let spanned_operand_is_foreign = Spanned { span: SPANS[0], node: operand_is_foreign };
++    let args = vec![spanned_operand, spanned_operand_is_foreign];
++
++    insert_call(tcx, func, &[generic_arg], args, patch, bb, data, i, lhs)
++}
++
++
++fn first_pass<'ctx>(tcx: TyCtxt<'ctx>, body: &mut Body<'ctx>,
++        capslock_crate_number : Option<CrateNum>, local_decls : &IndexVec<Local, LocalDecl<'ctx>>) {
++    let func_path_str = tcx.def_path_str(body.source.def_id());
++    if func_path_str.contains("capslock") || func_path_str.contains("mem::uninitialized") {
++        // we don't do this to capslock itself
++        return;
++    }
++    let param_env = tcx.param_env(body.source.def_id());
++    loop {
++        let mut patch = MirPatch::new(body);
++        let mut _patch_empty = true;
++
++
++        for (bb, data) in body.basic_blocks_mut().iter_enumerated_mut() {
++            for (i, stmt) in data.statements.clone().iter().enumerate().rev().skip(1) {
++                match stmt {
++                    Statement { kind: StatementKind::Assign(box (lhs, rhs)), .. } => {
++                        let lhs_type = (*local_decls)[lhs.local].ty;
++
++                        match rhs {
++                            Rvalue::AddressOf(mutability, place) => {
++                                    let r_ty = (*local_decls)[place.local].ty;
++                                    match lhs_type.kind() {
++                                        crate::ty::RawPtr(tm) => {
++                                                let is_unsafe_cell = get_pointee_type(r_ty)
++                                                    .is_some_and(|ty: Ty<'_>| ty.ty_adt_def().is_some_and(|adt| adt.is_unsafe_cell())) ;
++                                                let is_foreign = get_pointee_type(lhs_type)
++                                                    .is_some_and(|ty| matches!(ty.kind(), &ty::Foreign(_)));
++                                                insert_borrow(tcx, capslock_crate_number, &mut patch, bb, data,
++                                                    i, mutability, lhs_type, lhs, is_unsafe_cell, is_foreign); // treat all raw pointers as UnsafeCell
++                                                _patch_empty = false;
++                                                break;
++                                            // }
++                                        },
++                                        _ => ()
++                                    }
++                            },
++                            Rvalue::Ref(_region, borrow_kind, place) => {
++                                // check if this is &*p where p is a raw pointer and of a sized type
++                                let is_borrow = place.is_indirect_first_projection() &&
++                                    (*local_decls)[place.local].ty.is_unsafe_ptr();
++
++                                // println!("Ref {:?} = {:?}, lhs type peeled = {:?}", lhs_type, place, lhs_type.peel_refs());
++                                let is_foreign = get_pointee_type(lhs_type)
++                                    .is_some_and(|ty| matches!(ty.kind(), &ty::Foreign(_)));
++                                let mutability = match borrow_kind {
++                                    BorrowKind::Mut { .. } => Mutability::Mut,
++                                    _ => Mutability::Not
++                                };
++                                if is_borrow {
++                                    insert_borrow(tcx, capslock_crate_number, &mut patch, bb, data, i,
++                                        &mutability, lhs_type, lhs, false, is_foreign);
++                                    _patch_empty = false;
++                                    break;
++                                } else if !place.projection.is_empty() && place.projection.iter().find(
++                                    // check if it is projected to a sub-region
++                                    |proj|
++                                        match proj {
++                                            &ProjectionElem::Field(_, _) |
++                                            &ProjectionElem::Index(_) |
++                                            &ProjectionElem::Subslice { .. } |
++                                            &ProjectionElem::ConstantIndex { .. } =>
++                                                true,
++                                            _ => false
++                                        }
++                                    ).is_some()
++                                {
++                                }
++                            },
++                            _ => (),
++                        }
++                    }
++                    _ => (),
++                }
++            }
++        }
++
++        patch.apply(body);
++        if _patch_empty {
++            break;
++        }
++    }
++}
++
++impl<'tcx> MirPass<'tcx> for InjectCapsLock {
++    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
++        sess.target.arch == "riscv64" &&
++        sess.opts.crate_name.as_ref() != Some(&"hashbrown".to_string()) &&
++        sess.opts.crate_name.as_ref() != Some(&"addr2line".to_string()) &&
++        sess.opts.crate_name.as_ref() != Some(&"gimli".to_string())
++    }
++
++    fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
++        let local_decls_clone = body.local_decls.clone();
++
++        // This is to dynamically locate the capslock crate and not hard-code its definition index
++        let capslock_crate_number = tcx.crates(()).iter()
++            .find(|x| tcx.crate_name(**x).as_str() == "core").cloned();
++
++        first_pass(tcx, body, capslock_crate_number, &local_decls_clone);
++    }
++}
+\ No newline at end of file
+diff --git a/compiler/rustc_mir_transform/src/lib.rs b/compiler/rustc_mir_transform/src/lib.rs
+index cd9b98e4f32..859250197a3 100644
+--- a/compiler/rustc_mir_transform/src/lib.rs
++++ b/compiler/rustc_mir_transform/src/lib.rs
+@@ -111,6 +111,7 @@
+ mod sroa;
+ mod uninhabited_enum_branching;
+ mod unreachable_prop;
++mod inject_capslock;
+ 
+ use rustc_const_eval::transform::check_consts::{self, ConstCx};
+ use rustc_const_eval::transform::validate;
+@@ -118,6 +119,8 @@
+ 
+ rustc_fluent_macro::fluent_messages! { "../messages.ftl" }
+ 
++pub static mut IS_BOOTSTRAP: bool = false;
++
+ pub fn provide(providers: &mut Providers) {
+     check_unsafety::provide(providers);
+     coverage::query::provide(providers);
+@@ -535,6 +538,7 @@ fn run_runtime_lowering_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+         &add_retag::AddRetag,
+         &Lint(known_panics_lint::KnownPanicsLint),
+     ];
++
+     pm::run_passes_no_validate(tcx, body, passes, Some(MirPhase::Runtime(RuntimePhase::Initial)));
+ }
+ 
+@@ -556,11 +560,11 @@ fn run_runtime_cleanup_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+ }
+ 
+ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
++    // The main optimizations that we do on MIR.
+     fn o1<T>(x: T) -> WithMinOptLevel<T> {
+         WithMinOptLevel(1, x)
+     }
+ 
+-    // The main optimizations that we do on MIR.
+     pm::run_passes(
+         tcx,
+         body,
+@@ -571,6 +575,8 @@ fn o1<T>(x: T) -> WithMinOptLevel<T> {
+             // Has to be done before inlining, otherwise actual call will be almost always inlined.
+             // Also simple, so can just do first
+             &lower_slice_len::LowerSliceLenCalls,
++            // CapsLock-injection pass (it is yet unclear where the best place to perform this pass is; we're doing it quite early to avoid potential aggressive optimisations).
++            &inject_capslock::InjectCapsLock,
+             // Perform inlining, which may add a lot of code.
+             &inline::Inline,
+             // Code from other crates may have storage markers, so this needs to happen after inlining.
+@@ -619,11 +625,15 @@ fn o1<T>(x: T) -> WithMinOptLevel<T> {
+             // Cleanup for human readability, off by default.
+             &prettify::ReorderBasicBlocks,
+             &prettify::ReorderLocals,
++
++            // &prettify::ReorderBasicBlocks,
++            // &prettify::ReorderLocals,
+             // Dump the end result for testing and debugging purposes.
+             &dump_mir::Marker("PreCodegen"),
+         ],
+         Some(MirPhase::Runtime(RuntimePhase::Optimized)),
+     );
++
+ }
+ 
+ /// Optimize the MIR and prepare it for codegen.
+diff --git a/compiler/rustc_session/src/config.rs b/compiler/rustc_session/src/config.rs
+index 1573920c8c0..364c0512ab5 100644
+--- a/compiler/rustc_session/src/config.rs
++++ b/compiler/rustc_session/src/config.rs
+@@ -1091,6 +1091,7 @@ fn default() -> Options {
+             color: ColorConfig::Auto,
+             logical_env: FxIndexMap::default(),
+             verbose: false,
++            capslock: None,
+         }
+     }
+ }
+@@ -1773,6 +1774,7 @@ pub fn rustc_short_optgroups() -> Vec<RustcOptGroup> {
+         opt::multi_s("C", "codegen", "Set a codegen option", "OPT[=VALUE]"),
+         opt::flag_s("V", "version", "Print version info and exit"),
+         opt::flag_s("v", "verbose", "Use verbose output"),
++        opt::opt_s("", "capslock", "Use CapsLock for specified crate", "CapsLock"),
+     ]
+ }
+ 
+@@ -2904,6 +2906,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
+     };
+ 
+     let verbose = matches.opt_present("verbose") || unstable_opts.verbose_internals;
++    let capslock = matches.opt_str("capslock");
+ 
+     Options {
+         assert_incr_state,
+@@ -2947,6 +2950,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
+         color,
+         logical_env,
+         verbose,
++        capslock,
+     }
+ }
+ 
+diff --git a/compiler/rustc_session/src/options.rs b/compiler/rustc_session/src/options.rs
+index 93bef82e4ba..fa39f604de4 100644
+--- a/compiler/rustc_session/src/options.rs
++++ b/compiler/rustc_session/src/options.rs
+@@ -133,7 +133,7 @@ pub fn dep_tracking_hash(&self, for_crate_hash: bool) -> u64 {
+     pub struct Options {
+         /// The crate config requested for the session, which may be combined
+         /// with additional crate configurations during the compile process.
+-        #[rustc_lint_opt_deny_field_access("use `Session::crate_types` instead of this field")]
++        // #[rustc_lint_opt_deny_field_access("use `Session::crate_types` instead of this field")]
+         crate_types: Vec<CrateType> [TRACKED],
+         optimize: OptLevel [TRACKED],
+         /// Include the `debug_assertions` flag in dependency tracking, since it
+@@ -225,6 +225,7 @@ pub struct Options {
+         color: ColorConfig [UNTRACKED],
+ 
+         verbose: bool [TRACKED_NO_CRATE_HASH],
++        capslock: Option<String> [TRACKED],
+     }
+ );
+ 
+diff --git a/library/alloc/src/alloc.rs b/library/alloc/src/alloc.rs
+index a5d28aa5252..d45dbfe08be 100644
+--- a/library/alloc/src/alloc.rs
++++ b/library/alloc/src/alloc.rs
+@@ -1,5 +1,7 @@
+ //! Memory allocation APIs
+ 
++#![allow(unused, unreachable_code)]
++
+ #![stable(feature = "alloc_module", since = "1.28.0")]
+ 
+ #[cfg(not(test))]
+@@ -54,9 +56,29 @@
+ #[cfg_attr(not(bootstrap), lang = "global_alloc_ty")]
+ pub struct Global;
+ 
++/// has the process been initialised?
++#[stable(feature = "alloc_module", since = "1.28.0")]
++pub static mut INIT_DONE : bool = false;
++
++
+ #[cfg(test)]
+ pub use std::alloc::Global;
+ 
++// #[cfg(target_arch = "riscv64")]
++// fn alloc_to_cap(r : Result<NonNull<[u8]>, AllocError>, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
++//     r.map(|p| {
++//         unsafe {
++//             NonNull::new_unchecked(core::capslock::create_capab_from_ptr_unsized(p.as_ptr(), layout.size()))
++//         }
++//     })
++// }
++
++#[cfg(target_arch = "riscv64")]
++fn alloc_to_cap_raw(r : *mut u8, size: usize) -> *mut u8 {
++    core::capslock::create_capab_from_ptr_unsized(r, (((size - 1) >> 3) + 1) << 3)
++}
++
++
+ /// Allocate memory with the global allocator.
+ ///
+ /// This function forwards calls to the [`GlobalAlloc::alloc`] method
+@@ -97,7 +119,14 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
+         // stable code until it is actually stabilized.
+         core::ptr::read_volatile(&__rust_no_alloc_shim_is_unstable);
+ 
+-        __rust_alloc(layout.size(), layout.align())
++        #[cfg(target_arch = "riscv64")]
++        {
++            return alloc_to_cap_raw(__rust_alloc(layout.size(), layout.align()), layout.size());
++        }
++        #[cfg(not(target_arch = "riscv64"))]
++        {
++            return __rust_alloc(layout.size(), layout.align());
++        }
+     }
+ }
+ 
+@@ -116,6 +145,9 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
+ #[stable(feature = "global_alloc", since = "1.28.0")]
+ #[inline]
+ pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
++    #[cfg(target_arch = "riscv64")]
++        unsafe { core::capslock::invalidate(ptr); __rust_dealloc(core::capslock::scrub(ptr), layout.size(), layout.align()) }
++    #[cfg(not(target_arch = "riscv64"))]
+     unsafe { __rust_dealloc(ptr, layout.size(), layout.align()) }
+ }
+ 
+@@ -135,6 +167,12 @@ pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
+ #[must_use = "losing the pointer will leak memory"]
+ #[inline]
+ pub unsafe fn realloc(ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
++    #[cfg(target_arch = "riscv64")]
++    unsafe {
++        core::capslock::invalidate(ptr);
++        alloc_to_cap_raw(__rust_realloc(core::capslock::scrub(ptr), layout.size(), layout.align(), new_size), new_size)
++    }
++    #[cfg(not(target_arch = "riscv64"))]
+     unsafe { __rust_realloc(ptr, layout.size(), layout.align(), new_size) }
+ }
+ 
+@@ -253,7 +291,7 @@ unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+         if layout.size() != 0 {
+             // SAFETY: `layout` is non-zero in size,
+             // other conditions must be upheld by the caller
+-            unsafe { dealloc(ptr.as_ptr(), layout) }
++            { unsafe { dealloc(ptr.as_ptr(), layout) } }
+         }
+     }
+ 
+@@ -265,6 +303,13 @@ unsafe fn grow(
+         new_layout: Layout,
+     ) -> Result<NonNull<[u8]>, AllocError> {
+         // SAFETY: all conditions must be upheld by the caller
++        // #[cfg(target_arch = "riscv64")]
++        // unsafe {
++        //     core::capslock::invalidate(ptr.as_ptr());
++        //     let ptr = NonNull::new_unchecked(core::capslock::scrub(ptr.as_ptr()));
++        //     self.grow_impl(ptr, old_layout, new_layout, false)
++        // }
++        // #[cfg(not(target_arch = "riscv64"))]
+         unsafe { self.grow_impl(ptr, old_layout, new_layout, false) }
+     }
+ 
+@@ -276,6 +321,13 @@ unsafe fn grow_zeroed(
+         new_layout: Layout,
+     ) -> Result<NonNull<[u8]>, AllocError> {
+         // SAFETY: all conditions must be upheld by the caller
++        // #[cfg(target_arch = "riscv64")]
++        // unsafe {
++        //     core::capslock::invalidate(ptr.as_ptr());
++        //     let ptr = NonNull::new_unchecked(core::capslock::scrub(ptr.as_ptr()));
++        //     self.grow_impl(ptr, old_layout, new_layout, true)
++        // }
++        // #[cfg(not(target_arch = "riscv64"))]
+         unsafe { self.grow_impl(ptr, old_layout, new_layout, true) }
+     }
+ 
+@@ -451,3 +503,26 @@ unsafe fn write_clone_into_raw(&self, target: *mut Self) {
+         unsafe { target.copy_from_nonoverlapping(self, 1) };
+     }
+ }
++
++/// Guard for initialisation
++#[stable(feature = "global_alloc", since = "1.28.0")]
++#[derive(Debug)]
++pub struct InitGuard {
++    _private: ()
++}
++
++impl InitGuard {
++    /// Creates a new initialisation guard
++    #[stable(feature = "global_alloc", since = "1.28.0")]
++    pub fn new() -> Self {
++        unsafe { INIT_DONE = false; }
++        InitGuard { _private: () }
++    }
++}
++
++#[stable(feature = "global_alloc", since = "1.28.0")]
++impl Drop for InitGuard {
++    fn drop(&mut self) {
++        unsafe { INIT_DONE = true; }
++    }
++}
+diff --git a/library/core/src/capslock.rs b/library/core/src/capslock.rs
+new file mode 100644
+index 00000000000..1b2a8f2d6b1
+--- /dev/null
++++ b/library/core/src/capslock.rs
+@@ -0,0 +1,153 @@
++use crate::arch::asm;
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn create_capab_from_ptr_unsized<T>(ptr: *mut T, size : usize) -> *mut T where T : ?Sized {
++    let base = ptr.addr();
++    let top = base + size;
++    unsafe {
++        let returned_addr: usize;
++        asm!(
++            ".insn r 0x5b, 0x1, 0x40, {addr}, {base}, {top}",  // GENCAP
++            ".insn r 0x5b, 0x1, 0b1101, x0, {addr}, x0", // mark as UnsafeCell
++            base = in(reg) base,
++            top = in(reg) top,
++            addr = out(reg) returned_addr,
++        );
++        ptr.with_addr(returned_addr)
++    }
++}
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn shrink<T>(ptr: *const T, is_foreign : bool) -> *const T where T : ?Sized {
++    let size = if is_foreign { 0 } else { crate::mem::size_of_val(unsafe {&*ptr}) };
++    let returned_addr : usize;
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0x1, 0b1, {returned_addr}, {addr}, {size}", // CSBORROWMUT
++            returned_addr = out(reg) returned_addr,
++            addr = in(reg) addr,
++            size = in(reg) size,
++        );
++    }
++    ptr.with_addr(returned_addr)
++}
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn shrink_mut<T>(ptr: *mut T, is_foreign : bool) -> *mut T where T : ?Sized {
++    shrink(ptr as *const T, is_foreign) as *mut T
++}
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn shrink_mut_ref<T>(r: &mut T, is_foreign : bool) -> &mut T where T : ?Sized {
++    unsafe { &mut *shrink_mut(r as *mut T, is_foreign) }
++}
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn shrink_ref<T>(r: &T, is_foreign : bool) -> &T where T : ?Sized {
++    unsafe { &*shrink(r as *const T, is_foreign) }
++}
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn borrow_mut_ref<T>(r: &mut T, pointer_type : u8, is_foreign : bool) -> &mut T where T : ?Sized {
++    unsafe { &mut *borrow_mut(r as *mut T, pointer_type, is_foreign) }
++}
++
++
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn borrow_ref<T>(r: &T, pointer_type : u8, is_foreign : bool) -> &T where T : ?Sized {
++    unsafe { &*borrow(r as *const T as *mut T, pointer_type, is_foreign) }
++}
++
++/// Mutably borrow from a capability
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn borrow_mut<T>(ptr: *mut T, pointer_type : u8, is_foreign : bool) -> *mut T where T : ?Sized {
++    let size = if is_foreign { 0 } else { crate::mem::size_of_val(unsafe {&*ptr}) };
++    let returned_addr : usize;
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0x1, 0b1100, {returned_addr}, {addr}, {size}", // CSBORROWMUT
++            returned_addr = out(reg) returned_addr,
++            addr = in(reg) addr,
++            size = in(reg) size,
++        );
++    }
++    if pointer_type != 0 {
++        unsafe {
++            asm!(
++                ".insn r 0x5b, 0x1, 0b1101, x0, {addr}, {pointer_type}",
++                addr = in(reg) returned_addr,
++                pointer_type = in(reg) pointer_type,
++            );
++        }
++    }
++    ptr.with_addr(returned_addr)
++}
++
++/// Immutably borrow from a capability
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn borrow<T>(ptr: *mut T, pointer_type : u8, is_foreign : bool) -> *const T where T : ?Sized {
++    let size = if is_foreign { 0 } else { crate::mem::size_of_val(unsafe {&*ptr}) };
++    let returned_addr : usize;
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0x1, 0b1000, {returned_addr}, {addr}, {size}", // CSBORROW
++            returned_addr = out(reg) returned_addr,
++            addr = in(reg) addr,
++            size = in(reg) size,
++        );
++    }
++    if pointer_type != 0 {
++        unsafe {
++            asm!(
++                ".insn r 0x5b, 0x1, 0b1101, x0, {addr}, {pointer_type}",
++                addr = in(reg) returned_addr,
++                pointer_type = in(reg) pointer_type,
++            );
++        }
++    }
++    ptr.with_addr(returned_addr)
++}
++
++/// Convert a capability into a raw pointer (if it is a capability)
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn scrub<T>(ptr: *mut T) -> *mut T where T : ?Sized {
++    let returned_addr : usize;
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0x1, 0x4, {returned_addr}, {addr}, x2",
++            returned_addr = out(reg) returned_addr,
++            addr = in(reg) addr,
++        );
++    }
++    ptr.with_addr(returned_addr)
++}
++
++/// Invalidate a capability
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn invalidate<T>(ptr: *mut T) where T : ?Sized {
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0b001, 0b0001011, x0, {addr}, x0",    // DROP
++            addr = in(reg) addr,
++        );
++    }
++}
++
++/// Prints debug info about a capability
++#[stable(feature = "core_primitive", since = "1.43.0")]
++pub fn debug_print_ptr<T>(ptr: *mut T) where T : ?Sized {
++    unsafe {
++        let addr = ptr.addr();
++        asm!(
++            ".insn r 0x5b, 0x1, 0x4, t3, {addr}, x8", // LCC
++            ".insn r 0x5b, 0x1, 0x43, x0, {addr}, x0",           // PRINT - Raw value of the addr ".insn r 0x5b, 0x1, 0x43, x0, t3, x0",           // PRINT - Is it a capab?
++            addr = in(reg) addr,
++            out("t3") _,
++        );
++    }
++}
+\ No newline at end of file
+diff --git a/library/core/src/lib.rs b/library/core/src/lib.rs
+index 0f7885769c2..541c92fe113 100644
+--- a/library/core/src/lib.rs
++++ b/library/core/src/lib.rs
+@@ -467,4 +467,9 @@ pub mod simd {
+     pub use crate::core_simd::simd::*;
+ }
+ 
++#[cfg(target_arch = "riscv64")]
++#[stable(feature = "core_primitive", since = "1.43.0")]
++#[allow(missing_docs)]
++pub mod capslock;
++
+ include!("primitive_docs.rs");
+diff --git a/library/std/src/lib.rs b/library/std/src/lib.rs
+index 8cf44f4760d..46fbffad21c 100644
+--- a/library/std/src/lib.rs
++++ b/library/std/src/lib.rs
+@@ -586,6 +586,7 @@
+ pub mod sync;
+ pub mod time;
+ 
++
+ // Pull in `std_float` crate  into std. The contents of
+ // `std_float` are in a different repository: rust-lang/portable-simd.
+ #[path = "../../portable-simd/crates/std_float/src/lib.rs"]
+diff --git a/library/std/src/rt.rs b/library/std/src/rt.rs
+index 335944845ae..df44ada8b3b 100644
+--- a/library/std/src/rt.rs
++++ b/library/std/src/rt.rs
+@@ -145,6 +145,7 @@ fn lang_start_internal(
+     // user code from `main` or, more nefariously, as described in e.g. issue #86030.
+     // SAFETY: Only called once during runtime initialization.
+     panic::catch_unwind(move || unsafe { init(argc, argv, sigpipe) }).map_err(rt_abort)?;
++    unsafe { alloc::alloc::INIT_DONE = true; }
+     let ret_code = panic::catch_unwind(move || panic::catch_unwind(main).unwrap_or(101) as isize)
+         .map_err(move |e| {
+             mem::forget(e);
+diff --git a/library/std/src/sys/pal/unix/alloc.rs b/library/std/src/sys/pal/unix/alloc.rs
+index af0089978ec..b1f48730a07 100644
+--- a/library/std/src/sys/pal/unix/alloc.rs
++++ b/library/std/src/sys/pal/unix/alloc.rs
+@@ -39,7 +39,11 @@ unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+ 
+     #[inline]
+     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+-        libc::free(ptr as *mut libc::c_void)
++        #[cfg(target_arch = "riscv64")]
++            unsafe { libc::free(core::capslock::scrub(ptr) as *mut libc::c_void) }
++            // unsafe { core::capslock::invalidate(ptr); libc::free(core::capslock::scrub(ptr) as *mut libc::c_void) }
++        #[cfg(not(target_arch = "riscv64"))]
++            libc::free(ptr as *mut libc::c_void)
+     }
+ 
+     #[inline]

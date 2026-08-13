@@ -1,0 +1,4 @@
+#!/bin/sh
+
+docker pull corank/capslock-artefacts:latest
+docker tag corank/capslock-artefacts:latest capslock-artefacts

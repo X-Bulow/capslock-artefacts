@@ -1,0 +1,10 @@
+[CAPSLOCK] Attempting to use an invalid capability for load (address = 10af68, size = 8, node = 0x5555561644e0) @ pc = 18f92!
+Previously invalidated at 165ea
+PC: 18f92
+PC: 0
+[CAPSLOCK] Bounds 0: 10af60 -- 10af78 (valid = 0, unsafecell = 0) @ 0x5555561644e0
+[CAPSLOCK] Parents unsafecell:
+[CAPSLOCK] Ty = 1, bounds = 10af60 -- 10af78 @0x555556163b98
+[CAPSLOCK] Ty = 1, bounds = 10af60 -- 10af90 @0x555556151608
+[CAPSLOCK] Ty = 0, bounds = 10af60 -- 10af90 @0x555556150e20
+[CAPSLOCK] Ty = 0, bounds = 10af60 -- 10af90 @0x5555561502c8

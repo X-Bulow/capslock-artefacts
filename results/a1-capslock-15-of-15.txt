@@ -1,0 +1,15 @@
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2019-0009.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560d8298, 949) addr = f64e0, size = 3 @ pc = 131aa
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2019-0023.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560df358, 1277) addr = 10a500, size = 3 @ pc = 27192
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2021-0031.txt:[CAPSLOCK] Attempting to use invalid capability for store (address = fa4e8, size = 4, node = 0x5555560ff490) @ pc = 187be!
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2021-0049.txt:[CAPSLOCK] Attempting to drop an invalid capability! f54e0 0x5555560ccf28 in 8 @ 145e8, previously invalidated at 144c2
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2021-0130.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = 10af68, size = 8, node = 0x5555561644e0) @ pc = 18f92!
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2022-0007.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x55555612ec40, 4980) addr = 112580, size = 12 @ pc = 20d2a
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2022-0070.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = 117440, size = 4, node = 0x5555560cd558) @ pc = 26560!
+evaluations/2-existing-bugs/run-logs-mac-sequential/RUSTSEC-2023-0070.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560d7110, 898) addr = f6520, size = 11 @ pc = 18a00
+run-logs/RUSTSEC-2020-0023.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = f74e0, size = 4, node = 0x5555560dfa90) @ pc = 172c6!
+run-logs/RUSTSEC-2020-0091.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560d6be8, 883) addr = 2aaaab2ab790, size = 16 @ pc = 13930
+run-logs/RUSTSEC-2021-0039.txt:[CAPSLOCK] Attempting to drop an invalid capability! f44e0 0x5555560cb7c8 in 8757 @ 135e0, previously invalidated at 136cc
+run-logs/RUSTSEC-2021-0053.txt:[CAPSLOCK] Attempting to drop an invalid capability! f9550 0x5555560d5bc0 in 8744 @ 19160, previously invalidated at 192f8
+run-logs/RUSTSEC-2021-0114.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = f8500, size = 8, node = 0x5555560e3190) @ pc = 131d8!
+run-logs/RUSTSEC-2022-0002.txt:[CAPSLOCK] Attempting to use an invalid capability for load (address = 14370c, size = 4, node = 0x55555682c540) @ pc = eca66!
+run-logs/RUSTSEC-2022-0040.txt:[CAPSLOCK] Attempting to borrow from an invalid capability (node = 0x5555560cc8f8, 409) addr = f14e0, size = 1 @ pc = 12e52

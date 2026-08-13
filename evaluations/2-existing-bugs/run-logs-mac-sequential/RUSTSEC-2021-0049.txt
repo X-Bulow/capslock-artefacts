@@ -1,0 +1,6 @@
+thread 'main' panicked at src/main.rs:7:9:
+Unexpected panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[CAPSLOCK] Attempting to drop an invalid capability! f54e0 0x5555560ccf28 in 8 @ 145e8, previously invalidated at 144c2
+PC: 145e8
+PC: 15
