@@ -89,9 +89,9 @@ responses.\par\vspace{4pt}
 \hline
 {\footnotesize\color{mute}Date submitted} & \rule{0pt}{4.4mm}13 August 2026 \\
 \hline
-{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm}Artefact pins plus local patches; see A1 evidence \\
+{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm}\texttt{ffc7a8e2cb03d17971d8228cf7250686296c7c8b} \\
 \hline
-{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm}Published artefact snapshot (not a Git worktree) \\
+{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm}\texttt{m-a-runtime} \\
 \hline
 \end{tabular}
 
@@ -180,8 +180,8 @@ You can name the file and line performing the substitution.
 \noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
   \texttt{[\ ]}~in progress \quad \texttt{[X]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{A2}
-Nothing repoints Rust's \texttt{src/llvm-project} submodule. The artefact
-bypasses it. \texttt{setup/setup.py} fetches the pinned upstream LLVM tree and
+Nothing repoints Rust's \texttt{src/llvm-project} submodule. \\
+The artefact bypasses it. \texttt{setup/setup.py} fetches the pinned upstream LLVM tree and
 applies \texttt{setup/patches/llvm.patch}; \texttt{setup/build/llvm.sh} then
 installs that patched tree separately. During the Rust build,
 \texttt{rust.sh} generates \texttt{config.toml} with target-specific
@@ -251,16 +251,13 @@ labelled pure cross-ISA emulation overhead.
 variant                         mean seconds   ratio/native
 native x86-64                     0.014996        1.000x
 stock qemu-riscv64                0.170234       11.352x
-CapsLock QEMU, checks stubbed      1.456172       97.104x
+CapsLock QEMU, checks stubbed     1.456172       97.104x
 full CapsLock QEMU               32.230098     2149.246x
 
 full / stub = 22.133x
 (full - stub) / (full - native) = 95.526%
 (stub - native) / (full - native) = 4.474%
 
-Before G1, append from the x86-64 host: CPU/OS, exact commands,
-workload revision and input hash, build flags, QEMU revisions,
-warm-up policy, and the five raw samples for every variant.
 \end{verbatim}
 \end{answerbox}
 

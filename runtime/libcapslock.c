@@ -134,8 +134,7 @@ void capslock_runtime_free(capslock_runtime_t *runtime)
     free(runtime);
 }
 
-capslock_node_t *capslock_create(
-    capslock_runtime_t *runtime, uintptr_t base, uintptr_t end)
+capslock_node_t *capslock_create(capslock_runtime_t *runtime, uintptr_t base, uintptr_t end)
 {
     size_t start;
     size_t offset;
@@ -178,8 +177,7 @@ capslock_node_t *capslock_create(
     return NULL;
 }
 
-capslock_node_t *capslock_find_allocation(
-    const capslock_runtime_t *runtime, uintptr_t address)
+capslock_node_t *capslock_find_allocation(const capslock_runtime_t *runtime, uintptr_t address)
 {
     size_t index;
 
@@ -392,8 +390,7 @@ bool capslock_shadow_store(
     return false;
 }
 
-capslock_node_t *capslock_shadow_load(
-    const capslock_runtime_t *runtime, uintptr_t shadow_address)
+capslock_node_t *capslock_shadow_load(const capslock_runtime_t *runtime, uintptr_t shadow_address)
 {
     size_t start;
     size_t offset;
