@@ -82,8 +82,7 @@ static bool range_overlaps(
     return left_base < right_end && right_base < left_end;
 }
 
-static bool owns_node(
-    const capslock_runtime_t *runtime, const capslock_node_t *node)
+static bool owns_node(const capslock_runtime_t *runtime, const capslock_node_t *node)
 {
     return runtime != NULL && node != NULL &&
            node >= runtime->nodes && node < runtime->nodes + runtime->node_count;

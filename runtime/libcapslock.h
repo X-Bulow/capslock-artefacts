@@ -23,10 +23,8 @@ typedef enum {
 capslock_runtime_t *capslock_runtime_new(size_t node_capacity);
 void capslock_runtime_free(capslock_runtime_t *runtime);
 
-capslock_node_t *capslock_create(
-    capslock_runtime_t *runtime, uintptr_t base, uintptr_t end);
-capslock_node_t *capslock_find_allocation(
-    const capslock_runtime_t *runtime, uintptr_t address);
+capslock_node_t *capslock_create(capslock_runtime_t *runtime, uintptr_t base, uintptr_t end);
+capslock_node_t *capslock_find_allocation(const capslock_runtime_t *runtime, uintptr_t address);
 
 capslock_node_t *capslock_borrow(
     capslock_runtime_t *runtime,
@@ -45,12 +43,8 @@ bool capslock_access(
 bool capslock_revoke(capslock_runtime_t *runtime, capslock_node_t *node);
 bool capslock_mark_type(capslock_node_t *node, capslock_node_type_t type);
 
-bool capslock_shadow_store(
-    capslock_runtime_t *runtime,
-    uintptr_t shadow_address,
-    capslock_node_t *node);
-capslock_node_t *capslock_shadow_load(
-    const capslock_runtime_t *runtime, uintptr_t shadow_address);
+bool capslock_shadow_store(capslock_runtime_t *runtime, uintptr_t shadow_address, capslock_node_t *node);
+capslock_node_t *capslock_shadow_load(const capslock_runtime_t *runtime, uintptr_t shadow_address);
 
 capslock_permission_t capslock_permission(const capslock_node_t *node);
 capslock_node_type_t capslock_type(const capslock_node_t *node);

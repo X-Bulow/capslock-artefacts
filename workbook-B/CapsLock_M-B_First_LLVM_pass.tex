@@ -1,0 +1,325 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=21mm,top=24mm,bottom=22mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}\usepackage{enumitem}\usepackage{fancyhdr}\usepackage{parskip}
+\usepackage{longtable}\usepackage[most]{tcolorbox}\usepackage[hidelinks]{hyperref}
+\definecolor{ink}{HTML}{1A1A18}\definecolor{mute}{HTML}{6B6A64}
+\definecolor{rule}{HTML}{D8D6CE}\definecolor{boxbg}{HTML}{F4F2EC}
+\definecolor{acc}{HTML}{7A4A28}\definecolor{warn}{HTML}{8A2B2B}
+\definecolor{ansbg}{HTML}{FFFDF7}
+\pagestyle{fancy}\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}\renewcommand{\footrulewidth}{0.4pt}
+\fancyhead[L]{\footnotesize\color{mute}CAPSLOCK LLVM ENGINE \ \textperiodcentered\ STUDENT WORKBOOK}
+\fancyhead[R]{\footnotesize\color{mute}\MSLABEL}
+\fancyfoot[L]{\footnotesize\color{mute}Internal}
+\fancyfoot[R]{\footnotesize\color{mute}Page \thepage}
+\setlist[enumerate]{leftmargin=6mm,itemsep=2pt,topsep=3pt}
+\setlist[itemize]{leftmargin=6mm,itemsep=2pt,topsep=3pt,label=\textemdash}
+\newcommand{\lbl}[1]{\vspace{5pt}\noindent{\scriptsize\bfseries\color{mute}\MakeUppercase{#1}}\par\vspace{1pt}}
+\newtcolorbox{notebox}{colback=boxbg,colframe=boxbg,boxrule=0pt,left=6pt,right=6pt,top=6pt,bottom=6pt,breakable,before skip=6pt,after skip=6pt}
+\newtcolorbox{gatebox}{colback=boxbg,colframe=boxbg,boxrule=0pt,borderline west={2.2pt}{0pt}{acc},left=6pt,right=6pt,top=6pt,bottom=6pt,breakable,before skip=6pt,after skip=10pt}
+\newtcolorbox{askbox}{colback=white,colframe=rule,boxrule=0.4pt,borderline west={2.2pt}{0pt}{acc},left=6pt,right=6pt,top=5pt,bottom=5pt,breakable,before skip=5pt,after skip=4pt}
+\newtcolorbox{answerbox}[1]{colback=ansbg,colframe=acc,boxrule=0.6pt,left=6pt,right=6pt,top=5pt,bottom=5pt,breakable,before skip=4pt,after skip=10pt,title={\footnotesize\bfseries ANSWER \textemdash\ #1},fonttitle=\normalfont,coltitle=white,colbacktitle=acc}
+\newcommand{\statusline}{\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad \texttt{[\ ]}~in progress \quad \texttt{[\ ]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}}
+\newcommand{\taskhead}[2]{\vspace{10pt}\noindent{\large\bfseries #1\quad #2}\par\vspace{2pt}}
+\newcommand{\hairline}{\vspace{7pt}\noindent\textcolor{rule}{\rule{\linewidth}{0.4pt}}\par\vspace{3pt}}
+\newcommand{\MSLABEL}{M-B \ \textperiodcentered\ FIRST LLVM PASS}
+
+
+\begin{document}
+
+\thispagestyle{fancy}
+
+\noindent{\Huge\bfseries M-B\ \ \textperiodcentered\ \ First LLVM pass}\par\vspace{2pt}
+
+\noindent{\color{mute}6 tasks \ \textperiodcentered\ B0 to B5}\par\vspace{8pt}
+
+\begin{notebox}
+Six tasks. B0 closes three loose ends carried forward from M-A; they are cheap now and expensive later, so do them before anything else. B1 to B4 are LLVM mechanics and contain nothing CapsLock-specific. B5 exists because A2 established how the toolchain actually consumes LLVM: not through the submodule at all, but through an external llvm-config path with continuous-integration LLVM downloads disabled. Proving that handoff now, with a stock compiler and no CapsLock content, removes the largest remaining unknown from M-E at a cost of about a day. Expect the build system to consume more time than the code.
+\end{notebox}
+
+\begin{gatebox}
+{\scriptsize\bfseries\color{mute}GATE B}\par\vspace{2pt}
+{\bfseries The pass compiles, links, runs, and sees every memory access. M-A carry-forward closed, and the external-LLVM handoff proven with a stock toolchain.}
+\end{gatebox}
+
+\begin{notebox}
+{\scriptsize\bfseries\color{mute}HOW TO USE THIS FILE}\par\vspace{3pt}
+Fill in the \textsc{answer} box under each task and return this \texttt{.tex} file. Leave everything else untouched so the briefs stay comparable. Tick one status per task. Where the question asks for numbers, output or commit hashes, paste them into the \texttt{verbatim} block rather than describing them in prose. If a task is blocked, say what by; a blocked task and a slow task need different responses.\par\vspace{4pt}
+{\scriptsize\color{mute}Compile with \texttt{pdflatex}. Return the source, not the PDF.}
+\end{notebox}
+
+\vspace{4pt}
+\noindent\begin{tabular}{@{}p{34mm}p{120mm}@{}}
+\hline
+{\footnotesize\color{mute}Name} & \rule{0pt}{4.4mm} \\
+\hline
+{\footnotesize\color{mute}Date submitted} & \rule{0pt}{4.4mm} \\
+\hline
+{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm} \\
+\hline
+{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm} \\
+\hline
+\end{tabular}
+\vspace{6pt}
+
+\taskhead{B0}{Carry-forward from M-A}
+\lbl{Objective}
+Close three loose ends from M-A before starting compiler work.
+
+\lbl{Why this matters}
+Two are measurement defects that will corrupt the G1 comparison if left in place, and one is an unverified complexity claim that both G1 and G2 depend on. All three cost hours now and weeks later.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Rerun the A3 measurement at ten times the iteration count and confirm the ratios hold. The original absolute times were small enough that fixed startup cost may dominate. Note that the reference allocates a node pool of 65536 times 256 entries, roughly 1.7 GB of zero-initialised memory being faulted in, which is a startup cost rather than a per-access one.
+  \item Add a fifth datapoint: native x86-64 built without optimisation. The original step (b) measured stock emulation on an unoptimised binary, which conflates cross-ISA emulation cost with unoptimised-code cost. This separates them. That conflation was a defect in the brief, not in your work.
+  \item Add a test that counts nodes visited per access and demonstrates the count is bounded by tree depth plus nodes destroyed, rather than by tree size.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item The third item matters most. Passing correctness tests is entirely compatible with a naive full-tree scan. G1 and G2 both assume amortised constant work per access; if the walk is linear in tree size that assumption fails silently and surfaces months later as disappointing performance with no obvious cause.
+\end{itemize}
+\lbl{Done when}
+A revised ratio table with five variants, and a node-visit bound demonstrated by test.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Do the A3 ratios hold at ten times the iterations, what is the native unoptimised number, and what is the maximum nodes-visited count your test observes?}
+\end{askbox}
+\statusline
+\begin{answerbox}{B0}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{B1}{Build and install LLVM at the pinned revision}
+\lbl{Objective}
+Build LLVM at the exact revision the artefact pins, install it to a prefix, and verify the installed tree is consumable as an external LLVM.
+
+\lbl{Why this matters}
+A2 established that the artefact does not use the LLVM submodule at all. It patches a pinned upstream tree, installs that tree to a prefix, and points the Rust build at it through an llvm-config path. What you need is therefore an installed tree, not a build tree, and the two are genuinely different things. The same finding raises a second question: whether the artefact's LLVM patch is needed for your design at all.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Build at the revision you recorded in A1, not at an arbitrary checkout of the same major version.
+  \item Configure with Ninja and the following: CMAKE\_BUILD\_TYPE set to Release; LLVM\_ENABLE\_ASSERTIONS on; LLVM\_TARGETS\_TO\_BUILD limited to RISCV and X86; LLVM\_ENABLE\_PROJECTS set to include clang; LLVM\_CCACHE\_BUILD on; and CMAKE\_INSTALL\_PREFIX set to an explicit prefix of your choosing.
+  \item Run the build, then run the install target. The install step is the one that is easy to skip.
+  \item Verify by running llvm-config from the install prefix rather than from the build directory, querying version, prefix and libdir. Every path it reports should sit underneath your prefix.
+  \item Decide whether to apply the artefact's LLVM patch. Record the decision and the reasoning.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item The two trees are different things. A build tree is what the build system produces in place: object files, libraries and tools that work only from where they sit, with headers still in your source checkout and some generated headers existing only under the build directory. An installed tree is the self-contained bin, include, lib and share layout that the install target copies to the prefix. llvm-config is a query tool that reports where headers, libraries and CMake files live, and it gives different answers depending on which tree you ask. Asked from a build tree, some of those paths point back into your source checkout, so a consumer following them sees only part of what it needs. That fails confusingly rather than cleanly, which is worse.
+  \item Include clang in the enabled projects. The Rust build needs it, and it is easy to omit when you are thinking only about opt and your own pass.
+  \item Your out-of-tree plugin should consume the same installed tree. The CMake package lives under lib/cmake/llvm inside the prefix, so point LLVM\_DIR there when you reach B2. That keeps the plugin and the Rust build consuming one LLVM rather than two, which is the whole reason for insisting on the install step.
+  \item Your design most likely does not need the artefact's LLVM patch. Its contribution is custom instruction definitions and frame lowering, and you replace frame lowering with tagged allocas at C5 and emit no custom instructions at all. If that reasoning holds, build stock and the toolchain becomes materially simpler.
+  \item Assertions are not optional. Without them, malformed IR fails silently or crashes far from its cause.
+\end{itemize}
+\lbl{Done when}
+llvm-config run from the install prefix reports the expected version, and every path it reports sits under the prefix.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{What does llvm-config from your install prefix report for version, prefix and libdir, did you apply the artefact's LLVM patch, and why?}
+\end{askbox}
+\statusline
+\begin{answerbox}{B1}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{B2}{Hello-world plugin pass}
+\lbl{Objective}
+Build an out-of-tree pass that prints every function name.
+
+\lbl{Why this matters}
+Out-of-tree means seconds per rebuild instead of hours. You may never need to go in-tree; a proper driver flag is cosmetic and can wait until the thesis is written.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Implement llvmGetPassPluginInfo and register a PassBuilder callback.
+  \item Build as a shared library and load it with the pass-plugin flag.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Most tutorials online use the legacy pass manager, with RegisterPass and runOnFunction overrides. Those are pre-2021 and will not work. You want the new pass manager.
+  \item LLVM uses opaque pointers now, so getPointerElementType() no longer exists. Tutorials calling it are stale, and since this project is entirely about pointers you will hit this immediately. The error messages do not explain why.
+\end{itemize}
+\lbl{Done when}
+It prints function names for a test .ll file.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Paste the output on a two-function C file. Are you using llvmGetPassPluginInfo rather than RegisterPass?}
+\end{askbox}
+\statusline
+\begin{answerbox}{B2}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{B3}{Insert a runtime call}
+\lbl{Objective}
+Insert a call to your M-A runtime at each function entry.
+
+\lbl{Why this matters}
+This closes the loop from compiler to runtime for the first time. Everything afterwards is refinement of this one capability.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Use IRBuilder and getOrInsertFunction to declare and call the runtime function.
+  \item Link the runtime into the test program.
+  \item Verify with a before-and-after IR dump.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Set up your debugging toolkit now: IR dumps before and after, the print-after-all flag, a DEBUG\_TYPE with the debug-only flag, and llvm-reduce for shrinking failing cases. llvm-reduce in particular turns a crash on a 40,000-line crate into a ten-line reproducer, and most people do not know it exists.
+\end{itemize}
+\lbl{Done when}
+A compiled program prints one line per function entered.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Does the instrumented binary print one line per call at runtime? Show the IR diff for one function.}
+\end{askbox}
+\statusline
+\begin{answerbox}{B3}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{B4}{Enumerate memory accesses}
+\lbl{Objective}
+Find and characterise every memory access in the module.
+
+\lbl{Why this matters}
+These are the sites where revoke-on-use checks will go. Missing a category means silent false negatives later.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Iterate instructions and handle LoadInst and StoreInst.
+  \item Get access size from the data layout, using the store size of the accessed type.
+  \item Log address and size.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item Loads and stores are not all of it. Atomic read-modify-write, atomic compare-exchange, and the memcpy, memmove and memset intrinsics also touch memory. Note which you are not yet handling; you will need them by M-C.
+\end{itemize}
+\lbl{Done when}
+Sizes are correct for i8, i32, i64 and struct-field access.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Are sizes correct for i8, i64 and a struct field load? Which memory-accessing instructions are you not yet handling?}
+\end{askbox}
+\statusline
+\begin{answerbox}{B4}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\hairline
+
+\taskhead{B5}{Prove the external-LLVM handoff}
+\lbl{Objective}
+Build a stock Rust compiler against your own LLVM installation, with no CapsLock content whatsoever.
+
+\lbl{Why this matters}
+A2 identified the exact seam by which the toolchain consumes LLVM, and that seam is the largest remaining unknown in M-E. Testing it now with a stock compiler costs about a day. Discovering it is fragile at E1, four milestones later and with your own modifications in the mix, costs considerably more and is much harder to diagnose.
+
+\lbl{Method}
+\begin{enumerate}
+  \item Take a stock Rust checkout at the revision you recorded in A1.
+  \item Generate config.toml with continuous-integration LLVM downloads disabled and llvm-config pointing at your install tree, following the mechanism you documented in A2.
+  \item Build, and confirm the resulting compiler reports your LLVM version.
+\end{enumerate}
+\lbl{Watch out for}
+\begin{itemize}
+  \item No CapsLock content in this task at all. If it fails, the failure is in the handoff, which is precisely what you are testing.
+  \item If the handoff proves fragile or needs changes, say so explicitly. The scope of M-E depends on the answer.
+\end{itemize}
+\lbl{Done when}
+A stock Rust compiler built against your LLVM reports your LLVM version.
+
+\lbl{You will be asked}
+\begin{askbox}
+\emph{Does the compiler report your LLVM version when queried verbosely, and did anything about the external-LLVM handoff need changing?}
+\end{askbox}
+\statusline
+\begin{answerbox}{B5}
+%% Write your answer here.
+
+\vspace{14mm}
+
+{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+\begin{verbatim}
+
+
+\end{verbatim}
+\end{answerbox}
+
+\vspace{10pt}
+
+\begin{gatebox}
+
+{\scriptsize\bfseries\color{mute}GATE B -{}- SIGN-OFF}\par\vspace{3pt}
+
+{\bfseries The pass compiles, links, runs, and sees every memory access. M-A carry-forward closed, and the external-LLVM handoff proven with a stock toolchain.}\par\vspace{5pt}
+
+\texttt{[\ ]}~Gate met \qquad \texttt{[\ ]}~Not met\par\vspace{4pt}
+
+{\scriptsize\color{mute}If not met, state which task is outstanding and why:}
+
+\begin{verbatim}
+
+
+\end{verbatim}
+
+\end{gatebox}
+
+\end{document}

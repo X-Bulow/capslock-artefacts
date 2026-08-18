@@ -40,12 +40,12 @@ static bool test_borrow_permissions_and_bounds(void)
 {
     capslock_runtime_t *runtime = new_runtime();
     capslock_node_t *root = capslock_create(runtime, 0x2000U, 0x2100U);
-    capslock_node_t *read_ref = capslock_borrow(
-        runtime, root, false, 0x2020U, 0x2040U);
+    capslock_node_t *read_ref = capslock_borrow(runtime, root, false, 0x2020U, 0x2040U);
 
     CHECK(read_ref != NULL);
     CHECK(capslock_permission(read_ref) == CAPSLOCK_RO);
     CHECK(capslock_borrow(runtime, read_ref, true, 0x2020U, 0x2030U) == NULL);
+    CHECK(capslock_borrow(runtime, read_ref, false, 0x2020U, 0x2030U) != NULL);
     CHECK(capslock_borrow(runtime, root, true, 0x1ff0U, 0x2030U) == NULL);
     capslock_runtime_free(runtime);
     return true;

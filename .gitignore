@@ -5,6 +5,7 @@ tmp/
 
 # macOS
 .DS_Store
+*.dSYM/
 
 # LaTeX generated files
 *.aux
@@ -14,8 +15,8 @@ tmp/
 *.out
 *.synctex.gz
 *.toc
-/workbook/CapsLock_M-A_Runtime.pdf
-/workbook/CapsLock.pdf
+/workbook-A/*.pdf
+/workbook-B/*.pdf
 
 # Rust build outputs
 target/
