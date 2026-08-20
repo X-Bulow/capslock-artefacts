@@ -1,6 +1,7 @@
 rustc-ice*.txt
 runtime/test_runtime
 runtime/oracle_programs
+runtime/test_nodecounts
 tmp/
 
 # macOS

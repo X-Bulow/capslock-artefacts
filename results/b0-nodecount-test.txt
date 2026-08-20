@@ -1,0 +1,27 @@
+B0 item 3: per-access node-visit bound
+=======================================
+
+Command:
+  make -B -C runtime test_nodecounts
+  ./runtime/test_nodecounts
+
+Output:
+  wide tree (8 irrelevant siblings): visited=2 destroyed=0 index-probes=3
+  wide tree (512 irrelevant siblings): visited=2 destroyed=0 index-probes=9
+  deep tree (depth=64): visited=65 destroyed=0 index-probes=64
+  destroyed subtree (depth=1, nodes=33): visited=35 destroyed=33 index-probes=2
+  maximum capability nodes visited: 65
+  node-visit bound: PASS
+
+Interpretation:
+  - Increasing irrelevant siblings from 8 to 512 does not increase the
+    capability-node count: both accesses visit only the active node and root.
+  - A depth-64 chain visits 65 nodes, exactly the active path length.
+  - Invalidating a 33-node conflicting subtree visits 2 active-path nodes plus
+    the 33 nodes destroyed, for 35 total.
+  - The auxiliary interval index performs 3 versus 9 probes for the two wide
+    trees, avoiding the previous linear scan (11 versus 515 node visits).
+
+Result:
+  Capability nodes visited per access are bounded by active borrow-tree path
+  length plus the number of nodes destroyed, rather than total tree size.

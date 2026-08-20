@@ -8,15 +8,28 @@
 #define CAPSLOCK_ALLOCATION_SLOTS 257U
 #define CAPSLOCK_SHADOW_SLOTS 1021U
 
+struct child_index_entry;
+
 struct capslock_node {
     struct capslock_node *parent;
     struct capslock_node *child;
     struct capslock_node *sibling;
+    struct capslock_node *previous_sibling;
+    struct child_index_entry *children_index;
+    struct child_index_entry *index_entry;
     uintptr_t base;
     uintptr_t end;
     capslock_permission_t permission;
     capslock_node_type_t type;
     size_t id;
+};
+
+struct child_index_entry {
+    struct child_index_entry *left;
+    struct child_index_entry *right;
+    capslock_node_t *node;
+    uintptr_t maximum_end;
+    uint64_t priority;
 };
 
 struct allocation_slot {
@@ -34,8 +47,14 @@ struct shadow_slot {
 
 struct capslock_runtime {
     capslock_node_t *nodes;
+    struct child_index_entry *child_index_entries;
+    capslock_node_t **access_scratch;
     size_t node_capacity;
     size_t node_count;
+    size_t access_scratch_count;
+    size_t last_access_nodes_visited;
+    size_t last_access_nodes_destroyed;
+    size_t last_access_index_probes;
     struct allocation_slot allocations[CAPSLOCK_ALLOCATION_SLOTS];
     struct shadow_slot shadow[CAPSLOCK_SHADOW_SLOTS];
     char last_error[192];
@@ -56,6 +75,135 @@ static size_t hash_address(uintptr_t value, size_t modulus)
     mixed *= UINT64_C(0xff51afd7ed558ccd);
     mixed ^= mixed >> 33;
     return (size_t)(mixed % modulus);
+}
+
+static uint64_t index_priority(size_t id)
+{
+    uint64_t mixed = (uint64_t)id + UINT64_C(0x9e3779b97f4a7c15);
+    mixed = (mixed ^ (mixed >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    mixed = (mixed ^ (mixed >> 27)) * UINT64_C(0x94d049bb133111eb);
+    return mixed ^ (mixed >> 31);
+}
+
+static uintptr_t index_maximum_end(const struct child_index_entry *entry)
+{
+    return entry == NULL ? 0U : entry->maximum_end;
+}
+
+static void update_index_entry(struct child_index_entry *entry)
+{
+    uintptr_t maximum_end;
+
+    if (entry == NULL) {
+        return;
+    }
+    maximum_end = entry->node->end;
+    if (index_maximum_end(entry->left) > maximum_end) {
+        maximum_end = entry->left->maximum_end;
+    }
+    if (index_maximum_end(entry->right) > maximum_end) {
+        maximum_end = entry->right->maximum_end;
+    }
+    entry->maximum_end = maximum_end;
+}
+
+static bool index_key_less(
+    const struct child_index_entry *left,
+    const struct child_index_entry *right)
+{
+    return left->node->base < right->node->base ||
+           (left->node->base == right->node->base &&
+            left->node->id < right->node->id);
+}
+
+static struct child_index_entry *rotate_index_left(
+    struct child_index_entry *root)
+{
+    struct child_index_entry *new_root = root->right;
+
+    root->right = new_root->left;
+    new_root->left = root;
+    update_index_entry(root);
+    update_index_entry(new_root);
+    return new_root;
+}
+
+static struct child_index_entry *rotate_index_right(
+    struct child_index_entry *root)
+{
+    struct child_index_entry *new_root = root->left;
+
+    root->left = new_root->right;
+    new_root->right = root;
+    update_index_entry(root);
+    update_index_entry(new_root);
+    return new_root;
+}
+
+static struct child_index_entry *insert_index_entry(
+    struct child_index_entry *root,
+    struct child_index_entry *entry)
+{
+    if (root == NULL) {
+        return entry;
+    }
+    if (index_key_less(entry, root)) {
+        root->left = insert_index_entry(root->left, entry);
+        if (root->left->priority < root->priority) {
+            root = rotate_index_right(root);
+        }
+    } else {
+        root->right = insert_index_entry(root->right, entry);
+        if (root->right->priority < root->priority) {
+            root = rotate_index_left(root);
+        }
+    }
+    update_index_entry(root);
+    return root;
+}
+
+static struct child_index_entry *merge_index_entries(
+    struct child_index_entry *left,
+    struct child_index_entry *right)
+{
+    if (left == NULL) {
+        return right;
+    }
+    if (right == NULL) {
+        return left;
+    }
+    if (left->priority < right->priority) {
+        left->right = merge_index_entries(left->right, right);
+        update_index_entry(left);
+        return left;
+    }
+    right->left = merge_index_entries(left, right->left);
+    update_index_entry(right);
+    return right;
+}
+
+static struct child_index_entry *remove_index_entry(
+    struct child_index_entry *root,
+    struct child_index_entry *entry)
+{
+    if (root == NULL) {
+        return NULL;
+    }
+    if (root == entry) {
+        struct child_index_entry *merged =
+            merge_index_entries(root->left, root->right);
+        root->left = NULL;
+        root->right = NULL;
+        root->maximum_end = root->node->end;
+        return merged;
+    }
+    if (index_key_less(entry, root)) {
+        root->left = remove_index_entry(root->left, entry);
+    } else {
+        root->right = remove_index_entry(root->right, entry);
+    }
+    update_index_entry(root);
+    return root;
 }
 
 static bool range_valid(uintptr_t base, uintptr_t end)
@@ -99,6 +247,9 @@ static capslock_node_t *allocate_node(capslock_runtime_t *runtime)
     node = &runtime->nodes[runtime->node_count];
     (void)memset(node, 0, sizeof(*node));
     node->id = runtime->node_count;
+    node->index_entry = &runtime->child_index_entries[node->id];
+    node->index_entry->node = node;
+    node->index_entry->priority = index_priority(node->id);
     runtime->node_count += 1U;
     return node;
 }
@@ -119,6 +270,17 @@ capslock_runtime_t *capslock_runtime_new(size_t node_capacity)
         free(runtime);
         return NULL;
     }
+    runtime->child_index_entries =
+        calloc(node_capacity, sizeof(*runtime->child_index_entries));
+    runtime->access_scratch =
+        calloc(node_capacity, sizeof(*runtime->access_scratch));
+    if (runtime->child_index_entries == NULL || runtime->access_scratch == NULL) {
+        free(runtime->access_scratch);
+        free(runtime->child_index_entries);
+        free(runtime->nodes);
+        free(runtime);
+        return NULL;
+    }
     runtime->node_capacity = node_capacity;
     set_error(runtime, "ok");
     return runtime;
@@ -129,6 +291,8 @@ void capslock_runtime_free(capslock_runtime_t *runtime)
     if (runtime == NULL) {
         return;
     }
+    free(runtime->access_scratch);
+    free(runtime->child_index_entries);
     free(runtime->nodes);
     free(runtime);
 }
@@ -220,56 +384,106 @@ capslock_node_t *capslock_borrow(
     }
     node->parent = parent;
     node->sibling = parent->child;
+    if (parent->child != NULL) {
+        parent->child->previous_sibling = node;
+    }
     parent->child = node;
     node->base = base;
     node->end = end;
     node->permission = is_mutable ? CAPSLOCK_RW : CAPSLOCK_RO;
     node->type = CAPSLOCK_REF;
+    node->index_entry->maximum_end = node->end;
+    parent->children_index =
+        insert_index_entry(parent->children_index, node->index_entry);
     set_error(runtime, "ok");
     return node;
 }
 
-static void invalidate_subtree(capslock_node_t *node)
+static void invalidate_subtree(
+    capslock_runtime_t *runtime,
+    capslock_node_t *node,
+    bool count_access)
 {
     capslock_node_t *child;
 
     if (node == NULL || node->permission == CAPSLOCK_NA) {
         return;
     }
+    if (count_access) {
+        runtime->last_access_nodes_visited += 1U;
+        runtime->last_access_nodes_destroyed += 1U;
+    }
     node->permission = CAPSLOCK_NA;
     for (child = node->child; child != NULL; child = child->sibling) {
-        invalidate_subtree(child);
+        invalidate_subtree(runtime, child, count_access);
+    }
+}
+
+static void detach_child(capslock_node_t *parent, capslock_node_t *child)
+{
+    if (child->previous_sibling != NULL) {
+        child->previous_sibling->sibling = child->sibling;
+    } else {
+        parent->child = child->sibling;
+    }
+    if (child->sibling != NULL) {
+        child->sibling->previous_sibling = child->previous_sibling;
+    }
+    parent->children_index =
+        remove_index_entry(parent->children_index, child->index_entry);
+    child->previous_sibling = NULL;
+    child->sibling = NULL;
+}
+
+static void collect_conflicting_children(
+    capslock_runtime_t *runtime,
+    struct child_index_entry *entry,
+    const capslock_node_t *except,
+    uintptr_t base,
+    uintptr_t end,
+    bool is_write)
+{
+    capslock_node_t *child;
+
+    if (entry == NULL || entry->maximum_end <= base) {
+        return;
+    }
+    runtime->last_access_index_probes += 1U;
+    collect_conflicting_children(
+        runtime, entry->left, except, base, end, is_write);
+
+    child = entry->node;
+    if (child->base < end && child != except &&
+        child->permission != CAPSLOCK_NA &&
+        range_overlaps(base, end, child->base, child->end) &&
+        (is_write || child->permission == CAPSLOCK_RW)) {
+        runtime->access_scratch[runtime->access_scratch_count] = child;
+        runtime->access_scratch_count += 1U;
+    }
+
+    if (child->base < end) {
+        collect_conflicting_children(
+            runtime, entry->right, except, base, end, is_write);
     }
 }
 
 static void invalidate_conflicting_children(
+    capslock_runtime_t *runtime,
     capslock_node_t *parent,
     const capslock_node_t *except,
     uintptr_t base,
     uintptr_t end,
     bool is_write)
 {
-    capslock_node_t **link = &parent->child;
+    size_t first = runtime->access_scratch_count;
+    size_t last;
+    size_t index;
 
-    while (*link != NULL) {
-        capslock_node_t *child = *link;
-        bool conflicts;
-
-        if (child->permission == CAPSLOCK_NA) {
-            *link = child->sibling;
-            continue;
-        }
-        if (child == except ||
-            !range_overlaps(base, end, child->base, child->end)) {
-            link = &child->sibling;
-            continue;
-        }
-
-        conflicts = is_write || child->permission == CAPSLOCK_RW;
-        if (!conflicts) {
-            link = &child->sibling;
-            continue;
-        }
+    collect_conflicting_children(
+        runtime, parent->children_index, except, base, end, is_write);
+    last = runtime->access_scratch_count;
+    for (index = first; index < last; ++index) {
+        capslock_node_t *child = runtime->access_scratch[index];
 
         if (child->type == CAPSLOCK_RAW) {
             /*
@@ -277,13 +491,14 @@ static void invalidate_conflicting_children(
              * another capability derived from its parent. References below
              * the raw node keep normal exclusivity and are still checked.
              */
-            invalidate_conflicting_children(child, NULL, base, end, is_write);
-            link = &child->sibling;
+            invalidate_conflicting_children(
+                runtime, child, NULL, base, end, is_write);
+            runtime->last_access_nodes_visited += 1U;
             continue;
         }
 
-        invalidate_subtree(child);
-        *link = child->sibling;
+        invalidate_subtree(runtime, child, true);
+        detach_child(parent, child);
     }
 }
 
@@ -295,6 +510,13 @@ bool capslock_access(
     bool is_write)
 {
     capslock_node_t *current;
+
+    if (runtime != NULL) {
+        runtime->last_access_nodes_visited = 0U;
+        runtime->last_access_nodes_destroyed = 0U;
+        runtime->last_access_index_probes = 0U;
+        runtime->access_scratch_count = 0U;
+    }
 
     if (!owns_node(runtime, node) || node->permission == CAPSLOCK_NA) {
         set_error(runtime, "attempting to use an invalid capability");
@@ -310,7 +532,8 @@ bool capslock_access(
     }
 
     /* Descendants are not ancestors of the accessing capability. */
-    invalidate_conflicting_children(node, NULL, base, end, is_write);
+    runtime->last_access_nodes_visited = 1U;
+    invalidate_conflicting_children(runtime, node, NULL, base, end, is_write);
 
     current = node;
     while (current->parent != NULL) {
@@ -321,8 +544,10 @@ bool capslock_access(
             break;
         }
         parent = current->parent;
-        invalidate_conflicting_children(parent, current, base, end, is_write);
+        invalidate_conflicting_children(
+            runtime, parent, current, base, end, is_write);
         current = parent;
+        runtime->last_access_nodes_visited += 1U;
     }
 
     set_error(runtime, "ok");
@@ -331,24 +556,31 @@ bool capslock_access(
 
 bool capslock_revoke(capslock_runtime_t *runtime, capslock_node_t *node)
 {
-    capslock_node_t **link;
-
     if (!owns_node(runtime, node) || node->permission == CAPSLOCK_NA) {
         set_error(runtime, "attempting to revoke an invalid capability");
         return false;
     }
-    invalidate_subtree(node);
+    invalidate_subtree(runtime, node, false);
     if (node->parent != NULL) {
-        link = &node->parent->child;
-        while (*link != NULL && *link != node) {
-            link = &(*link)->sibling;
-        }
-        if (*link == node) {
-            *link = node->sibling;
-        }
+        detach_child(node->parent, node);
     }
     set_error(runtime, "ok");
     return true;
+}
+
+size_t capslock_last_access_nodes_visited(const capslock_runtime_t *runtime)
+{
+    return runtime == NULL ? 0U : runtime->last_access_nodes_visited;
+}
+
+size_t capslock_last_access_nodes_destroyed(const capslock_runtime_t *runtime)
+{
+    return runtime == NULL ? 0U : runtime->last_access_nodes_destroyed;
+}
+
+size_t capslock_last_access_index_probes(const capslock_runtime_t *runtime)
+{
+    return runtime == NULL ? 0U : runtime->last_access_index_probes;
 }
 
 bool capslock_mark_type(capslock_node_t *node, capslock_node_type_t type)

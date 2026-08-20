@@ -40,6 +40,11 @@ bool capslock_access(
     uintptr_t end,
     bool is_write);
 
+size_t capslock_last_access_nodes_visited(const capslock_runtime_t *runtime);
+size_t capslock_last_access_nodes_destroyed(const capslock_runtime_t *runtime);
+/* Auxiliary interval-index entries examined; reported separately from nodes. */
+size_t capslock_last_access_index_probes(const capslock_runtime_t *runtime);
+
 bool capslock_revoke(capslock_runtime_t *runtime, capslock_node_t *node);
 bool capslock_mark_type(capslock_node_t *node, capslock_node_type_t type);
 
