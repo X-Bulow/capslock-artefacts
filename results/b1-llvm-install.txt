@@ -1,0 +1,12 @@
+LLVM source commit:
+5399a24c66cb6164cf32280e7d300488c90d5765
+LLVM source status:
+clean (stock LLVM; no artefact patch applied)
+version:         18.1.4
+prefix:          /home/bulow/projects/b1-llvm/install
+bindir:          /home/bulow/projects/b1-llvm/install/bin
+includedir:      /home/bulow/projects/b1-llvm/install/include
+libdir:          /home/bulow/projects/b1-llvm/install/lib
+cmakedir:        /home/bulow/projects/b1-llvm/install/lib/cmake/llvm
+targets-built:   RISCV X86
+assertion-mode:  ON

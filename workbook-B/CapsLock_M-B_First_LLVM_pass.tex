@@ -184,16 +184,38 @@ llvm-config run from the install prefix reports the expected version, and every 
 \begin{askbox}
 \emph{What does llvm-config from your install prefix report for version, prefix and libdir, did you apply the artefact's LLVM patch, and why?}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad
+  \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B1}
-%% Write your answer here.
+I built and installed stock LLVM at the pinned revision \\
+\texttt{5399a24c66cb6164cf32280e7d300488c90d5765}.
 
-\vspace{14mm}
+The installed \texttt{llvm-config} reports LLVM 18.1.4, prefix \texttt{/home/bulow/projects/b1-llvm/install}, and libdir \texttt{/home/bulow/projects/b1-llvm/install/lib}.
+Its bin, include, lib and
+CMake-package paths are all beneath that prefix.  The build is Release with
+assertions enabled, includes Clang, and is limited to the RISCV and X86
+targets.
+
+I did not apply the artefact's LLVM patch.  That patch adds custom instruction
+definitions and changes frame lowering, whereas this design emits no custom
+instructions and replaces the frame-lowering change with tagged allocas at
+C5.  Keeping LLVM stock therefore removes an unnecessary fork while allowing
+the B2 plugin and the B5 Rust build to consume the same installed LLVM tree.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
-
-
+source commit:  5399a24c66cb6164cf32280e7d300488c90d5765
+source status:  clean (stock LLVM; no artefact patch applied)
+version:        18.1.4
+prefix:         /home/bulow/projects/b1-llvm/install
+bindir:         /home/bulow/projects/b1-llvm/install/bin
+includedir:     /home/bulow/projects/b1-llvm/install/include
+libdir:         /home/bulow/projects/b1-llvm/install/lib
+cmakedir:       /home/bulow/projects/b1-llvm/install/lib/cmake/llvm
+targets-built:  RISCV X86
+assertion-mode: ON
+full output:    results/b1-llvm-install.txt
 \end{verbatim}
 \end{answerbox}
 
@@ -223,16 +245,35 @@ It prints function names for a test .ll file.
 \begin{askbox}
 \emph{Paste the output on a two-function C file. Are you using llvmGetPassPluginInfo rather than RegisterPass?}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad
+  \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B2}
-%% Write your answer here.
+I built \texttt{CapsLockPass.so} as an out-of-tree shared-library plugin
+against the LLVM 18.1.4 installation from B1.  The plugin is loaded by
+\texttt{opt} with \texttt{-load-pass-plugin}, and its function-pass pipeline
+name is \texttt{capslock-hello}.  On IR generated from the two-function C
+test, it printed both defined function names.
 
-\vspace{14mm}
+The implementation uses the new pass manager: it exports
+\texttt{llvmGetPassPluginInfo} and registers
+\texttt{PB.registerPipelineParsingCallback}.  It does not use the legacy
+\texttt{RegisterPass} or \texttt{runOnFunction} interfaces.  Because this B2
+pass only observes the IR, it returns \texttt{PreservedAnalyses::all()}.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
+plugin: llvm-pass/build/CapsLockPass.so
+command: opt -load-pass-plugin=CapsLockPass.so
+             -passes='function(capslock-hello)' -disable-output
 
+capslock-function: helper
+capslock-function: main
 
+registration: llvmGetPassPluginInfo
+callback:     PB.registerPipelineParsingCallback
+RegisterPass: absent
+full output:  results/b2-hello-pass.txt
 \end{verbatim}
 \end{answerbox}
 
