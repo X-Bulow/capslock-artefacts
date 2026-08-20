@@ -1,0 +1,17 @@
+[package]
+name = "capslock-a3-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+miniz_oxide = { path = "../evaluations/1-compat-perf/data-extracted/e2/d8/miniz_oxide-0.8.0" }
+
+[profile.dev]
+opt-level = 0
+debug = 0
+incremental = false
+
+[profile.release]
+opt-level = 3
+debug = 0
+incremental = false

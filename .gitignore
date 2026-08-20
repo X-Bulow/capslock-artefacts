@@ -21,3 +21,8 @@ tmp/
 
 # Rust build outputs
 target/
+target-capslock/
+
+# Local A3/B0 QEMU build products (provenance and hashes are documented)
+/a3-b0-bench/tools/qemu-riscv64-stock
+/a3-b0-bench/tools/qemu-riscv64-noop

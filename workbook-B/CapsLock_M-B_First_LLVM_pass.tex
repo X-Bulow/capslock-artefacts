@@ -88,17 +88,68 @@ A revised ratio table with five variants, and a node-visit bound demonstrated by
 \begin{askbox}
 \emph{Do the A3 ratios hold at ten times the iterations, what is the native unoptimised number, and what is the maximum nodes-visited count your test observes?}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad \texttt{[x]}~in progress \quad \texttt{[\ ]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B0}
 %% Write your answer here.
 
-\vspace{14mm}
+{\bfseries Items 1 and 2 complete; item 3 pending.}
 
-{\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
+The table reports five-trial arithmetic means of the internal
+\texttt{elapsed\_ns} timer. A3 used 100 iterations; B0 used 1000 iterations
+on the same workload under AC power. Ratios are normalised to the
+unoptimised native x86-64 binary in each experiment.
+
+\begin{center}
+{\scriptsize
+\begin{tabular}{@{}lrrrr@{}}
+\hline
+Variant & \shortstack{A3 mean\\100 iterations (s)} &
+\shortstack{B0 mean\\1000 iterations (s)} &
+\shortstack{A3\\ratio} & \shortstack{B0\\ratio} \\
+\hline
+native x86-64, optimised       & {--}      &   0.004490 & {--}     &    0.051 \\
+native x86-64, unoptimised     &  0.014996 &   0.087388 &    1.000 &    1.000 \\
+stock QEMU, unoptimised RISC-V &  0.170234 &   1.166708 &   11.352 &   13.351 \\
+CapsLock QEMU, checking no-op  &  1.456172 &   8.797251 &   97.104 &  100.668 \\
+full CapsLock QEMU             & 32.230098 & 181.941791 & 2149.245 & 2081.990 \\
+\hline
+\end{tabular}}
+\end{center}
+
+The A3 \emph{native} executable was already the unoptimised
+\texttt{target/debug} binary (\texttt{opt-level=0}). The missing fifth point
+was therefore the optimised \texttt{target/release} native binary
+(\texttt{opt-level=3}), which is $19.464\times$ faster than unoptimised native
+in B0. For the four configurations shared with A3, the ordering and main
+ratios hold: full/no-op changes from $22.133\times$ to $20.682\times$, and
+full/unoptimised-native from $2149.245\times$ to $2081.990\times$. All 25 B0
+observations produced the same checksum.
+
+Startup was already controlled in A3. As shown in
+\texttt{a3-b0-bench/src/main.rs}, \texttt{Instant::now()} is called only
+after input construction, compression and one warm-up decompression, and the
+timer ends immediately after the decompression loop. Thus
+\texttt{elapsed\_ns} includes QEMU and capability work performed while
+executing the workload, but excludes Docker/QEMU process startup, ELF loading
+and shutdown. Using the same timing boundary in A3 and B0 prevents fixed
+startup from distorting the comparison and helps explain why their ratios
+remain broadly similar.
+
+{\scriptsize\color{mute}Evidence}
 \begin{verbatim}
-
-
+A3 summary: results/a3-timing-summary.txt
+B0 raw:     results/b0-a3-1000-fiveway-ac-raw.txt
+B0 summary: results/b0-timing-summary.txt
+Timer:      a3-b0-bench/src/main.rs
 \end{verbatim}
+
+{\bfseries Item 3 pending: nodes visited per access.}
+
+Maximum nodes visited: \rule{38mm}{0.4pt}
+
+Test output / commit: \rule{55mm}{0.4pt}
+
+\vspace{10mm}
 \end{answerbox}
 
 \hairline

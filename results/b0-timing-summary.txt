@@ -1,0 +1,120 @@
+B0 A3 timing summary (five-way, AC-powered)
+================================================
+
+Measurement conditions
+----------------------
+Timing host: x86-64 Windows/WSL2 laptop, connected to AC power
+Preparation: Windows restarted before the run; no Isabelle workload running
+Pre-run WSL state: 8.0 GiB available memory, 0 B swap used, load average
+0.22 / 0.27 / 0.14, Docker ready
+Workload: 1000 timed miniz_oxide decompression iterations per measurement
+Input: deterministic 4096-byte buffer, compressed to 338 bytes
+Repetitions: 5 interleaved trials per variant
+Statistic: arithmetic mean of the 5 measurements
+Correctness: all 25 observations produced checksum 2554592075418854092
+
+Timing boundaries
+-----------------
+elapsed_ns is measured by Instant around only the decompression loop. It
+excludes Docker/process startup, QEMU initialisation, input construction,
+compression and one untimed warm-up decompression.
+
+wall_ns surrounds the complete docker run. It includes those fixed startup
+and shutdown costs as well as the timed workload. Internal elapsed time is
+therefore used for the workload ratios below; both measurements are retained.
+
+Mean internal elapsed times
+---------------------------
+variant                         mean seconds   ratio/opt-native   ratio/unopt-native
+native x86-64, optimised          0.004489847          1.000000             0.051378
+native x86-64, unoptimised        0.087388401         19.463558             1.000000
+stock qemu, unoptimised RISC-V    1.166707770        259.854672            13.350831
+CapsLock QEMU, checking no-op     8.797250892       1959.365319           100.668404
+full CapsLock QEMU              181.941791284      40522.936122          2081.990159
+
+Mean end-to-end wall times
+--------------------------
+variant                         mean seconds
+native x86-64, optimised          0.819404348
+native x86-64, unoptimised        0.792514341
+stock qemu, unoptimised RISC-V    1.944428335
+CapsLock QEMU, checking no-op     9.735284999
+full CapsLock QEMU              183.782600379
+
+For the very short native measurements, roughly 0.7 to 0.8 seconds of fixed
+Docker/process work dominates wall_ns. The small reversal between the two
+native wall means is startup noise and does not mean the unoptimised workload
+is faster. The internal timer measures the expected 19.464x optimisation gap.
+
+Incremental ratios
+------------------
+unoptimised native / optimised native: 19.463558x
+stock QEMU / unoptimised native:        13.350831x
+CapsLock no-op / stock QEMU:             7.540235x
+full CapsLock / CapsLock no-op:          20.681664x
+
+The stock/unoptimised-native comparison isolates cross-ISA emulation more
+cleanly than stock/optimised-native. The latter also includes the 19.464x
+effect of compiling the guest without optimisation.
+
+Absolute-slowdown decomposition
+-------------------------------
+full - optimised native: 181.937301437 s
+full - CapsLock no-op:   173.144540392 s
+
+(full - no-op) / (full - optimised native): 95.167148%
+(no-op - optimised native) / (full - optimised native): 4.832852%
+
+The first percentage is the portion of the full-over-optimised-native elapsed
+increase added when complete capability checking is enabled over the no-op
+CapsLock configuration. The complement includes ordinary emulation, the
+unoptimised and instrumented guest, and CapsLock-QEMU overhead, so it is not a
+pure cross-ISA emulation percentage.
+
+Run-to-run stability
+--------------------
+variant                         coefficient of variation
+native x86-64, optimised                         4.869%
+native x86-64, unoptimised                       6.148%
+stock qemu, unoptimised RISC-V                   8.855%
+CapsLock QEMU, checking no-op                    4.724%
+full CapsLock QEMU                               2.524%
+
+The AC-powered run was substantially faster than the earlier battery-powered
+run: 46.5% for optimised native, 42.9% for unoptimised native, 34.8% for stock
+QEMU, 38.4% for CapsLock no-op and 41.2% for full CapsLock. This supports using
+the AC-powered observations as the controlled result and retaining the battery
+run only as evidence of host power-state sensitivity.
+
+Reproducibility evidence
+------------------------
+Raw observations:
+  results/b0-a3-1000-fiveway-ac-raw.txt
+
+Runner:
+  a3-b0-bench/run-b0-a3-1000.sh
+
+Build script:
+  a3-b0-bench/build-a3.sh
+
+Command:
+  ./a3-b0-bench/run-b0-a3-1000.sh \
+    | tee results/b0-a3-1000-fiveway-ac-raw.txt
+
+Binary SHA-256 values
+---------------------
+native x86-64, optimised:
+  41ea021d2783d25bd499f8607d19fbce0942fd910825ae4e342155751c129e06
+native x86-64, unoptimised:
+  6bd5576b5ebb1c0fcb65c2990274d9b4d7a4edc6a336d3f5ad1c383bbe8809a8
+stock RISC-V guest:
+  2129c4aac52f8c98ec1d96f3a8cd14682b01e1baadb13564515e6f2561469926
+CapsLock-instrumented RISC-V guest (used by both no-op and full QEMU):
+  f7124c81f0c2c12d77619773d16910a0b941a145161de0f7a04ef47d344cacf2
+
+Remaining B0 work
+-----------------
+This summary closes the first two B0 measurement items: the 1000-iteration
+rerun and the five-way separation of optimised and unoptimised native code.
+B0 is not complete until the nodes-visited bound has also been demonstrated
+by test.

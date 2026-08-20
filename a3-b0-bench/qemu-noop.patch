@@ -1,0 +1,230 @@
+--- a/target/riscv/op_helper.c
++++ b/target/riscv/op_helper.c
+@@ -569,6 +569,44 @@
+ 
+ /* CapsLock helpers */
+ 
++/*
++ * A3 no-op variant: retain the CapsLock-aware translator and helper-call
++ * overhead, but replace capability semantics with scalar pass-throughs.
++ * The original implementations are kept under private names so this patch
++ * remains a small, auditable delta from the artefact QEMU.
++ */
++#define helper_csscc helper_csscc_capslock_full
++#define helper_cslcc helper_cslcc_capslock_full
++#define helper_csrevoke helper_csrevoke_capslock_full
++#define helper_csborrow helper_csborrow_capslock_full
++#define helper_csborrowmut helper_csborrowmut_capslock_full
++#define helper_csmarkunsafecell helper_csmarkunsafecell_capslock_full
++#define helper_csshrink helper_csshrink_capslock_full
++#define helper_csshrinkto helper_csshrinkto_capslock_full
++#define helper_cssplit helper_cssplit_capslock_full
++#define helper_cstighten helper_cstighten_capslock_full
++#define helper_csseal helper_csseal_capslock_full
++#define helper_csdrop helper_csdrop_capslock_full
++#define helper_csccsrrw helper_csccsrrw_capslock_full
++#define helper_csloadsp helper_csloadsp_capslock_full
++#define helper_csgencapstack helper_csgencapstack_capslock_full
++#define helper_cap_scrub helper_cap_scrub_capslock_full
++#define helper_load_with_cap helper_load_with_cap_capslock_full
++#define helper_store_with_cap helper_store_with_cap_capslock_full
++#define helper_check_cap_load helper_check_cap_load_capslock_full
++#define helper_move_cap helper_move_cap_capslock_full
++#define helper_set_cap_mem_map helper_set_cap_mem_map_capslock_full
++#define helper_remove_cap_mem_map helper_remove_cap_mem_map_capslock_full
++#define helper_set_pc_cap helper_set_pc_cap_capslock_full
++#define helper_csdebuggencap helper_csdebuggencap_capslock_full
++#define helper_csdebugoncapmem helper_csdebugoncapmem_capslock_full
++#define helper_csdebugclearcmmap helper_csdebugclearcmmap_capslock_full
++#define helper_csdebugprint helper_csdebugprint_capslock_full
++#define helper_capslock_debugger helper_capslock_debugger_capslock_full
++#define helper_csdebugcount helper_csdebugcount_capslock_full
++#define helper_csdebugcountprint helper_csdebugcountprint_capslock_full
++#define helper_reg_overwrite helper_reg_overwrite_capslock_full
++
+ static void cap_generate(capregval_t *v, uint64_t base, uint64_t end) {
+     capfat_t *cap = &v->val.cap;
+     cap_bounds_clear(cap);
+@@ -1305,3 +1343,181 @@
+         pc = frame.ra;
+     }
+ }
++
++#undef helper_csscc
++#undef helper_cslcc
++#undef helper_csrevoke
++#undef helper_csborrow
++#undef helper_csborrowmut
++#undef helper_csmarkunsafecell
++#undef helper_csshrink
++#undef helper_csshrinkto
++#undef helper_cssplit
++#undef helper_cstighten
++#undef helper_csseal
++#undef helper_csdrop
++#undef helper_csccsrrw
++#undef helper_csloadsp
++#undef helper_csgencapstack
++#undef helper_cap_scrub
++#undef helper_load_with_cap
++#undef helper_store_with_cap
++#undef helper_check_cap_load
++#undef helper_move_cap
++#undef helper_set_cap_mem_map
++#undef helper_remove_cap_mem_map
++#undef helper_set_pc_cap
++#undef helper_csdebuggencap
++#undef helper_csdebugoncapmem
++#undef helper_csdebugclearcmmap
++#undef helper_csdebugprint
++#undef helper_capslock_debugger
++#undef helper_csdebugcount
++#undef helper_csdebugcountprint
++#undef helper_reg_overwrite
++
++static inline void capslock_noop_set_scalar(CPURISCVState *env,
++                                             uint32_t rd,
++                                             uint64_t value)
++{
++    if (rd != 0) {
++        env->gpr[rd].val.scalar = value;
++        env->gpr[rd].tag = false;
++    }
++}
++
++static inline void capslock_noop_copy_reg(CPURISCVState *env,
++                                           uint32_t rd,
++                                           uint32_t rs)
++{
++    capslock_noop_set_scalar(env, rd, env->gpr[rs].val.scalar);
++}
++
++void helper_csscc(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                  uint32_t rs2)
++{
++    capslock_noop_copy_reg(env, rd, rs2);
++}
++
++void helper_cslcc(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                  uint32_t imm)
++{
++    uint64_t value = 0;
++
++    /* Cursor/base/end queries must preserve the ordinary pointer value. */
++    if (imm == 2 || imm == 3 || imm == 4) {
++        value = env->gpr[rs1].val.scalar;
++    }
++    capslock_noop_set_scalar(env, rd, value);
++}
++
++void helper_csrevoke(CPURISCVState *env, uint32_t rs1) {}
++
++void helper_csborrow(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                     uint32_t rs2)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csborrowmut(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                        uint32_t rs2)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csmarkunsafecell(CPURISCVState *env, uint32_t rs1,
++                             uint32_t rs2) {}
++
++void helper_csshrink(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                     uint32_t rs2)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csshrinkto(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                       uint64_t size)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_cssplit(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                    uint32_t rs2)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_cstighten(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                      uint32_t perms)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csseal(CPURISCVState *env, uint32_t rd, uint32_t rs1)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csdrop(CPURISCVState *env, uint32_t rs1) {}
++
++void helper_csccsrrw(CPURISCVState *env, uint32_t rd, uint32_t rs1,
++                     uint64_t ccsr_id)
++{
++    capslock_noop_copy_reg(env, rd, rs1);
++}
++
++void helper_csloadsp(CPURISCVState *env, uint32_t rd, uint32_t rs)
++{
++    capslock_noop_copy_reg(env, rd, rs);
++}
++
++void helper_csgencapstack(CPURISCVState *env, uint32_t rs, uint64_t size) {}
++
++void helper_cap_scrub(CPURISCVState *env, uint64_t addr) {}
++
++void helper_load_with_cap(CPURISCVState *env, uint64_t addr, uint32_t rs1,
++                          uint32_t memop) {}
++
++void helper_store_with_cap(CPURISCVState *env, uint64_t addr, uint32_t rs1,
++                           uint32_t rs2, uint32_t memop, uint32_t use_cap)
++{
++    env->data_to_store_with_cap = env->gpr[rs2].val.scalar;
++}
++
++void helper_check_cap_load(CPURISCVState *env, uint64_t addr, uint32_t rd,
++                           uint32_t memop)
++{
++    env->gpr[rd].tag = false;
++}
++
++void helper_move_cap(CPURISCVState *env, uint64_t value, uint32_t rd,
++                     uint32_t rs1, uint32_t rs2)
++{
++    capslock_noop_set_scalar(env, rd, value);
++}
++
++void helper_set_cap_mem_map(CPURISCVState *env, uint32_t reg, uint64_t addr,
++                            uint64_t to_set) {}
++
++void helper_remove_cap_mem_map(CPURISCVState *env, uint64_t addr,
++                               uint32_t memop) {}
++
++void helper_set_pc_cap(CPURISCVState *env, uint32_t reg) {}
++
++void helper_csdebuggencap(CPURISCVState *env, uint32_t rd, uint64_t base,
++                          uint64_t end)
++{
++    capslock_noop_set_scalar(env, rd, base);
++}
++
++void helper_csdebugoncapmem(CPURISCVState *env, uint64_t enabled) {}
++void helper_csdebugclearcmmap(CPURISCVState *env) {}
++void helper_csdebugprint(CPURISCVState *env, uint32_t rs1) {}
++void helper_capslock_debugger(CPURISCVState *env, uint64_t value) {}
++void helper_csdebugcount(CPURISCVState *env, uint64_t index,
++                         uint64_t increment) {}
++void helper_csdebugcountprint(CPURISCVState *env) {}
++
++void helper_reg_overwrite(CPURISCVState *env, uint32_t reg_num)
++{
++    env->gpr[reg_num].tag = false;
++}
+
