@@ -98,6 +98,7 @@ static bool test_load_only_kills_mutable_alias(void)
 
     CHECK(capslock_access(runtime, reader_one, 0x5050U, 0x5051U, false));
     CHECK(capslock_permission(writer) == CAPSLOCK_NA);
+    CHECK(capslock_permission(reader_one) == CAPSLOCK_RO);
     CHECK(capslock_permission(reader_two) == CAPSLOCK_RO);
     capslock_runtime_free(runtime);
     return true;
@@ -130,7 +131,7 @@ static bool test_raw_differs_from_ref(void)
     CHECK(capslock_access(runtime, writer, 0x7000U, 0x7001U, true));
     CHECK(capslock_permission(raw) == CAPSLOCK_RW);
     CHECK(capslock_permission(reference) == CAPSLOCK_NA);
-    CHECK(capslock_access(runtime, raw, 0x7000U, 0x7001U, false));
+    CHECK(capslock_access(runtime, raw, 0x7000U, 0x7001U, true));
     capslock_runtime_free(runtime);
     return true;
 }
