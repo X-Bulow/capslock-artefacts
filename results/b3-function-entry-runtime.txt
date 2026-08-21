@@ -1,0 +1,3 @@
+capslock-enter: main
+capslock-enter: helper
+exit_status=0

@@ -26,3 +26,5 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_llvm_pass_plugin(CapsLockPass
     src/CapsLockPass.cpp
 )
+
+target_compile_options(CapsLockPass PRIVATE -UNDEBUG)

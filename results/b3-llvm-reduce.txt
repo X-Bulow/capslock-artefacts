@@ -1,0 +1,7 @@
+llvm-reduce:
+LLVM (http://llvm.org/):
+  LLVM version 18.1.4
+  Optimized build with assertions.
+
+executable:
+yes

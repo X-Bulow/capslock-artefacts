@@ -1,0 +1,2 @@
+capslock-function-entry: instrumenting helper
+capslock-function-entry: instrumenting main

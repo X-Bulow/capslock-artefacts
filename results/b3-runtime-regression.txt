@@ -1,0 +1,55 @@
+make: Entering directory '/home/bulow/capslock-artefacts/runtime'
+cc -std=c11 -O0 -g -Wall -Wextra -Werror -pedantic libcapslock.c test_runtime.c -o test_runtime
+cc -std=c11 -O0 -g -Wall -Wextra -Werror -pedantic libcapslock.c oracle_programs.c -o oracle_programs
+cc -std=c11 -O0 -g -Wall -Wextra -Werror -pedantic libcapslock.c test_nodecounts.c -o test_nodecounts
+./test_runtime
+[PASS] create and shadow map
+[PASS] borrow permissions and bounds
+nested borrow chain: accepted
+use-after-revoke: rejected (attempting to use an invalid capability)
+[PASS] nested borrow and revoke
+[PASS] store invalidation
+[PASS] load invalidation
+[PASS] disjoint partial borrows
+[PASS] RAW versus REF
+[PASS] UnsafeCell relaxation
+[PASS] access checks
+9/9 runtime tests passed
+./oracle_programs
+CapsLock hand-written oracle programs
+[1] Listing 1(a): use-after-free
+  expected flag at oracle_programs.c:49: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[2] Listing 1(b): data race
+  expected flag at oracle_programs.c:81: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[3] Listing 1(c): unsafe aliasing
+  expected flag at oracle_programs.c:118: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[4] Figure 3: raw write invalidates ref
+  expected flag at oracle_programs.c:158: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[5] RUSTSEC-2020-0023: mutable aliases
+  expected flag at oracle_programs.c:198: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[6] RUSTSEC-2022-0002: guard lifetime
+  expected flag at oracle_programs.c:233: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[7] RUSTSEC-2021-0114: TLS aliases
+  expected flag at oracle_programs.c:268: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[8] RUSTSEC-2019-0009: freed backing store
+  expected flag at oracle_programs.c:303: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+[9] RUSTSEC-2022-0007: reference after clear
+  expected flag at oracle_programs.c:337: PASS (attempting to use an invalid capability)
+  bug: FLAGGED; clean variant: PASS
+9/9 buggy cases flagged; 9/9 clean variants passed
+./test_nodecounts
+wide tree (8 irrelevant siblings): visited=2 destroyed=0 index-probes=3
+wide tree (512 irrelevant siblings): visited=2 destroyed=0 index-probes=9
+deep tree (depth=64): visited=65 destroyed=0 index-probes=64
+destroyed subtree (depth=1, nodes=33): visited=35 destroyed=33 index-probes=2
+maximum capability nodes visited: 65
+node-visit bound: PASS
+make: Leaving directory '/home/bulow/capslock-artefacts/runtime'

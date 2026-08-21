@@ -22,6 +22,7 @@ typedef enum {
 
 capslock_runtime_t *capslock_runtime_new(size_t node_capacity);
 void capslock_runtime_free(capslock_runtime_t *runtime);
+void capslock_function_entry(const char *function_name);
 
 capslock_node_t *capslock_create(capslock_runtime_t *runtime, uintptr_t base, uintptr_t end);
 capslock_node_t *capslock_find_allocation(const capslock_runtime_t *runtime, uintptr_t address);

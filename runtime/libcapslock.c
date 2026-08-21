@@ -297,6 +297,11 @@ void capslock_runtime_free(capslock_runtime_t *runtime)
     free(runtime);
 }
 
+void capslock_function_entry(const char *function_name) {
+    printf("capslock-enter: %s\n", function_name != NULL ? function_name : "<unknown>");
+}
+
+
 capslock_node_t *capslock_create(capslock_runtime_t *runtime, uintptr_t base, uintptr_t end)
 {
     size_t start;

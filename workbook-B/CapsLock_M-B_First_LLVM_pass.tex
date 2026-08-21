@@ -303,16 +303,50 @@ A compiled program prints one line per function entered.
 \begin{askbox}
 \emph{Does the instrumented binary print one line per call at runtime? Show the IR diff for one function.}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad
+  \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B3}
-%% Write your answer here.
+I added \texttt{capslock\_function\_entry(const char *)} to the M-A runtime
+and implemented the \texttt{capslock-function-entry} module pass.  The pass
+uses \texttt{getOrInsertFunction} to declare the hook and \texttt{IRBuilder}
+to insert one call at the first valid insertion point of every defined
+function.  It skips declarations and the hook itself.
 
-\vspace{14mm}
+I compiled the instrumented IR together with \texttt{runtime/libcapslock.c}
+and ran the resulting native x86-64 binary.  The test enters \texttt{main}
+once and \texttt{helper} once, and the runtime printed exactly one line for
+each entry.  The program exited successfully.  The existing runtime suite
+also remained green: 9/9 unit tests passed, all 9 buggy oracle cases were
+flagged, all 9 clean variants passed, and the node-visit bound passed.
+
+For debugging I verified IR diffs, \texttt{-verify-each},
+\texttt{-print-after-all}, \texttt{DEBUG\_TYPE} with
+\texttt{-debug-only=capslock-function-entry}, and the installed
+\texttt{llvm-reduce} 18.1.4.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
+Runtime output:
+  capslock-enter: main
+  capslock-enter: helper
+  exit_status=0
 
+IR diff for helper:
+  define dso_local i32 @helper(i32 noundef %value) #0 {
+  entry:
++   call void @capslock_function_entry(ptr @0)
+    %value.addr = alloca i32, align 4
 
+Added declaration:
+  declare void @capslock_function_entry(ptr)
+
+IR diff:       results/b3-function-entry-ir.diff
+runtime run:   results/b3-function-entry-runtime.txt
+runtime tests: results/b3-runtime-regression.txt
+debug-only:    results/b3-debug-only.txt
+IR dump:       results/b3-print-after-all.txt
+llvm-reduce:   results/b3-llvm-reduce.txt
 \end{verbatim}
 \end{answerbox}
 
