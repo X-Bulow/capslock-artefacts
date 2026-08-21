@@ -53,13 +53,13 @@ Fill in the \textsc{answer} box under each task and return this \texttt{.tex} fi
 \vspace{4pt}
 \noindent\begin{tabular}{@{}p{34mm}p{120mm}@{}}
 \hline
-{\footnotesize\color{mute}Name} & \rule{0pt}{4.4mm} \\
+{\footnotesize\color{mute}Name} & \rule{0pt}{4.4mm} Zephyr \\
 \hline
-{\footnotesize\color{mute}Date submitted} & \rule{0pt}{4.4mm} \\
+{\footnotesize\color{mute}Date submitted} & \rule{0pt}{4.4mm} TODO \\
 \hline
-{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm} \\
+{\footnotesize\color{mute}Toolchain commit} & \rule{0pt}{4.4mm} https://github.com/X-Bulow/capslock-artefacts \\
 \hline
-{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm} \\
+{\footnotesize\color{mute}Branch / worktree} & \rule{0pt}{4.4mm} m-b-first-llvm-pass \\
 \hline
 \end{tabular}
 \vspace{6pt}
@@ -88,11 +88,11 @@ A revised ratio table with five variants, and a node-visit bound demonstrated by
 \begin{askbox}
 \emph{Do the A3 ratios hold at ten times the iterations, what is the native unoptimised number, and what is the maximum nodes-visited count your test observes?}
 \end{askbox}
-\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad \texttt{[x]}~in progress \quad \texttt{[\ ]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B0}
 %% Write your answer here.
 
-{\bfseries Items 1 and 2 complete; item 3 pending.}
+{\bfseries All three items complete.}
 
 The table reports five-trial arithmetic means of the internal
 \texttt{elapsed\_ns} timer. A3 used 100 iterations; B0 used 1000 iterations
@@ -135,21 +135,33 @@ and shutdown. Using the same timing boundary in A3 and B0 prevents fixed
 startup from distorting the comparison and helps explain why their ratios
 remain broadly similar.
 
+For item 3, the runtime now records capability nodes visited, nodes destroyed,
+and auxiliary interval-index probes for every access.  Increasing the number
+of irrelevant siblings from 8 to 512 left the capability-node count unchanged
+at 2; index probes rose only from 3 to 9.  A depth-64 chain visited 65 nodes,
+exactly the 65-node active path.  An access that destroyed a 33-node
+conflicting subtree visited 35 nodes, exactly 2 active-path nodes plus the 33
+nodes destroyed.  The maximum observed count was therefore \textbf{65}.
+These cases demonstrate that capability-node visits are bounded by active
+tree depth plus nodes actually destroyed, rather than by total tree size.
+
+\begin{verbatim}
+wide tree (8 siblings):    visited=2  destroyed=0  index-probes=3
+wide tree (512 siblings):  visited=2  destroyed=0  index-probes=9
+deep tree (depth=64):      visited=65 destroyed=0  index-probes=64
+destroyed subtree:         visited=35 destroyed=33 index-probes=2
+maximum capability nodes visited: 65
+node-visit bound: PASS
+\end{verbatim}
+
 {\scriptsize\color{mute}Evidence}
 \begin{verbatim}
 A3 summary: results/a3-timing-summary.txt
 B0 raw:     results/b0-a3-1000-fiveway-ac-raw.txt
 B0 summary: results/b0-timing-summary.txt
 Timer:      a3-b0-bench/src/main.rs
+Node bound: results/b0-nodecount-test.txt
 \end{verbatim}
-
-{\bfseries Item 3 pending: nodes visited per access.}
-
-Maximum nodes visited: \rule{38mm}{0.4pt}
-
-Test output / commit: \rule{55mm}{0.4pt}
-
-\vspace{10mm}
 \end{answerbox}
 
 \hairline
@@ -376,11 +388,23 @@ Sizes are correct for i8, i32, i64 and struct-field access.
 \begin{askbox}
 \emph{Are sizes correct for i8, i64 and a struct field load? Which memory-accessing instructions are you not yet handling?}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[x]}~in progress \quad \texttt{[\ ]}~done \quad
+  \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B4}
-%% Write your answer here.
+Work in progress.  I am learning how LLVM IR represents memory accesses,
+with particular attention to \texttt{LoadInst}, \texttt{StoreInst}, their
+pointer operands, and using the module's \texttt{DataLayout} to obtain the
+store size of the accessed type.  I am also studying how
+\texttt{getelementptr} identifies a structure field so that the reported
+size describes the field being accessed rather than the entire structure.
 
-\vspace{14mm}
+The next implementation step is to enumerate loads and stores and log their
+addresses and byte sizes, then verify the results for \texttt{i8},
+\texttt{i32}, \texttt{i64}, and a structure-field access.  Atomic operations
+and the \texttt{memcpy}, \texttt{memmove}, and \texttt{memset} intrinsics
+will be recorded explicitly as memory-access categories not yet handled by
+this B4 prototype.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
@@ -416,7 +440,9 @@ A stock Rust compiler built against your LLVM reports your LLVM version.
 \begin{askbox}
 \emph{Does the compiler report your LLVM version when queried verbosely, and did anything about the external-LLVM handoff need changing?}
 \end{askbox}
-\statusline
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[x]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[\ ]}~done \quad
+  \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B5}
 %% Write your answer here.
 
