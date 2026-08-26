@@ -453,18 +453,25 @@ A stock Rust compiler built against your LLVM reports your LLVM version.
 \begin{askbox}
 \emph{Does the compiler report your LLVM version when queried verbosely, and did anything about the external-LLVM handoff need changing?}
 \end{askbox}
-\noindent{\footnotesize\color{mute}Status:}\ \texttt{[x]}~not started \quad
-  \texttt{[\ ]}~in progress \quad \texttt{[\ ]}~done \quad
+\noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad
   \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B5}
-%% Write your answer here.
+Yes. A stock checkout at the A1-recorded revision, built with \texttt{download-ci-llvm = false} and \texttt{llvm-config} pointed at the B1 install (native \texttt{x86\_64-unknown-linux-gnu}, no RISC-V cross-linker needed to test the handoff itself), produces a stage-2 \texttt{rustc} that reports \texttt{LLVM version: 18.1.4} and the exact A1 commit hash --- no CapsLock content anywhere in the checkout or the config.
 
-\vspace{14mm}
+One thing needed changing: bootstrap's sanity check for an externally configured LLVM requires a \texttt{FileCheck} binary in \texttt{llvm-config}'s \texttt{bin/} directory. B1's install was built with \texttt{LLVM\_INSTALL\_UTILS=OFF}, so \texttt{FileCheck} existed in the LLVM build tree but was never installed. Fixed by copying the already-built binary into the install tree; no LLVM reconfiguration or rebuild required. Otherwise the handoff was not fragile --- the two \texttt{config.toml} keys A2 documented were sufficient.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
+$ build/host/stage2/bin/rustc -vV
+rustc 1.78.0-nightly (c69fda7dc 2024-03-11)
+commit-hash: c69fda7dc664e62f8920a02a4e55d6207b212c24
+commit-date: 2024-03-11
+host: x86_64-unknown-linux-gnu
+release: 1.78.0-nightly
+LLVM version: 18.1.4
 
-
+Fix required: cp <b1-llvm-build>/bin/FileCheck <b1-llvm-install>/bin/FileCheck
 \end{verbatim}
 \end{answerbox}
 
@@ -476,13 +483,12 @@ A stock Rust compiler built against your LLVM reports your LLVM version.
 
 {\bfseries The pass compiles, links, runs, and sees every memory access. M-A carry-forward closed, and the external-LLVM handoff proven with a stock toolchain.}\par\vspace{5pt}
 
-\texttt{[\ ]}~Gate met \qquad \texttt{[\ ]}~Not met\par\vspace{4pt}
+\texttt{[x]}~Gate met \qquad \texttt{[\ ]}~Not met\par\vspace{4pt}
 
 {\scriptsize\color{mute}If not met, state which task is outstanding and why:}
 
 \begin{verbatim}
-
-
+N/A -- B0 through B5 all done with evidence; see individual answerboxes.
 \end{verbatim}
 
 \end{gatebox}
