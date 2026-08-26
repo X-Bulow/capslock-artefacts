@@ -389,27 +389,40 @@ Sizes are correct for i8, i32, i64 and struct-field access.
 \emph{Are sizes correct for i8, i64 and a struct field load? Which memory-accessing instructions are you not yet handling?}
 \end{askbox}
 \noindent{\footnotesize\color{mute}Status:}\ \texttt{[\ ]}~not started \quad
-  \texttt{[x]}~in progress \quad \texttt{[\ ]}~done \quad
+  \texttt{[\ ]}~in progress \quad \texttt{[x]}~done \quad
   \texttt{[\ ]}~blocked\par\vspace{3pt}
 \begin{answerbox}{B4}
-Work in progress.  I am learning how LLVM IR represents memory accesses,
-with particular attention to \texttt{LoadInst}, \texttt{StoreInst}, their
-pointer operands, and using the module's \texttt{DataLayout} to obtain the
-store size of the accessed type.  I am also studying how
-\texttt{getelementptr} identifies a structure field so that the reported
-size describes the field being accessed rather than the entire structure.
+\texttt{capslock-memory-access} walks every instruction and handles
+\texttt{LoadInst}/\texttt{StoreInst}: accessed type from
+\texttt{getType()}/\texttt{getValueOperand()->getType()}, size from
+\texttt{DataLayout::getTypeStoreSize()}. Struct-field size is correct
+because the type comes from the \texttt{getelementptr}-narrowed pointer, not
+the struct itself.
 
-The next implementation step is to enumerate loads and stores and log their
-addresses and byte sizes, then verify the results for \texttt{i8},
-\texttt{i32}, \texttt{i64}, and a structure-field access.  Atomic operations
-and the \texttt{memcpy}, \texttt{memmove}, and \texttt{memset} intrinsics
-will be recorded explicitly as memory-access categories not yet handled by
-this B4 prototype.
+Not-yet-handled categories are matched with \texttt{isa<>} and logged
+explicitly rather than skipped silently: \texttt{AtomicRMWInst},
+\texttt{AtomicCmpXchgInst}, \texttt{MemCpyInst}/\texttt{MemMoveInst}/
+\texttt{MemSetInst}, their element-wise atomic counterparts
+(\texttt{AtomicMemCpyInst} etc. --- a separate class hierarchy, not caught by
+the non-atomic \texttt{isa<>} checks), \texttt{VAArgInst}, and the
+\texttt{llvm.masked.\{load,store,gather,scatter\}} intrinsics. Plain atomic
+loads/stores are already covered, since they use ordinary
+\texttt{LoadInst}/\texttt{StoreInst}.
+
+Verified sizes: 1 byte (\texttt{i8}), 8 bytes (\texttt{i64}), 8 bytes for a
+struct's \texttt{long} field (not the struct's 16-byte total). Each
+unhandled category produced exactly one log line and no size. Reran
+\texttt{capslock-function-entry} on \texttt{two-functions.ll}: output
+unchanged from the committed B3 result, so no regression.
 
 {\scriptsize\color{mute}Evidence \textemdash\ paste numbers, output or hashes below.}
 \begin{verbatim}
+results/b4-memory-access.txt    (llvm-pass/test/memory-access.c)
+results/b4-extra-categories.txt (llvm-pass/test/extra-categories.ll)
 
-
+store i8, size=1 bytes / store i64, size=8 bytes / store i64, size=8 bytes (p->b)
+atomicrmw / cmpxchg / llvm.memcpy: not yet handled
+va_arg / llvm.memcpy.element.unordered.atomic: not yet handled
 \end{verbatim}
 \end{answerbox}
 

@@ -1,0 +1,31 @@
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%8
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%9
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%10
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%11
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%12
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%13
+capslock-memory-access: memory_access_cases: store ptr, size=8 bytes, ptr=%14
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%9
+capslock-memory-access: memory_access_cases: store i8, size=1 bytes, ptr=%20
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%10
+capslock-memory-access: memory_access_cases: store i64, size=8 bytes, ptr=%21
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%8
+capslock-memory-access: memory_access_cases: store i64, size=8 bytes, ptr=%23
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%11
+capslock-memory-access: memory_access_cases: store i32, size=4 bytes, ptr=%15
+capslock-memory-access: memory_access_cases: load i32, size=4 bytes, ptr=%15
+capslock-memory-access: memory_access_cases: atomicrmw access not yet handled by this B4 prototype
+capslock-memory-access: memory_access_cases: store i32, size=4 bytes, ptr=%16
+capslock-memory-access: memory_access_cases: load i32, size=4 bytes, ptr=%16
+capslock-memory-access: memory_access_cases: store i32, size=4 bytes, ptr=%17
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%12
+capslock-memory-access: memory_access_cases: store i32, size=4 bytes, ptr=%18
+capslock-memory-access: memory_access_cases: load i32, size=4 bytes, ptr=%17
+capslock-memory-access: memory_access_cases: load i32, size=4 bytes, ptr=%18
+capslock-memory-access: memory_access_cases: cmpxchg access not yet handled by this B4 prototype
+capslock-memory-access: memory_access_cases: store i32, size=4 bytes, ptr=%17
+capslock-memory-access: memory_access_cases: store i8, size=1 bytes, ptr=%19
+capslock-memory-access: memory_access_cases: load i8, size=1 bytes, ptr=%19
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%13
+capslock-memory-access: memory_access_cases: load ptr, size=8 bytes, ptr=%14
+capslock-memory-access: memory_access_cases: llvm.memcpy access not yet handled by this B4 prototype

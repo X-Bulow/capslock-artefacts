@@ -1,0 +1,2 @@
+capslock-memory-access: uses_varargs: va_arg access not yet handled by this B4 prototype
+capslock-memory-access: uses_atomic_memcpy: llvm.memcpy.element.unordered.atomic access not yet handled by this B4 prototype
